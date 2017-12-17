@@ -1,0 +1,9 @@
+hadoop id-hduser
+hadoop pwwd-hduser
+step1:ssh localhost
+step2:start-all.sh
+step3:jps
+step4:hive
+step5:show databases;use userdb;
+step6:show tables;
+step7:stop-all.sh
