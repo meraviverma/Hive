@@ -1,0 +1,50 @@
+Hive Functions:
+1)Operations. ex: =,!=
+2)Functions(UDF=user defined function) [n:1] Ex: round,floor,ceil,
+3)Aggregate functions(UDAFs) Ex: count,min,max,corr [1:1]
+3)Table -generating functions (UDTFs) [m:n and 1:n] 
+
+200 build in functions
+UDTFs
+-----------
+explode
+posexplode
+json_tuple
+parse_url_tuple
+posexplode
+stack
+
+third-party libraries
+
+
+hive>show functions;
+hive>describe function acos;
+hive>describe function extended acos;
+
+UDAF: The input to UDAF is collection of rows but the output is only one row.
+The output of UDAF is collection of rows.
+
+If you are using your own function the compile it into java jars and make it 
+accessible on workers during runtime
+
+
+Temporary Function:
+--------------------
+hive> add jar /path/to/lib.jar
+hive> create temporary function func_name as "java.class.name";
+hive>select func_name(......)....;
+hive>drop temporary function func_name;
+
+Permanent Functions:
+--------------------------
+hive> create function [db_name.]func_name as "java.class.name"
+[USING JAR "/path/to/lib.jar"];
+hive> select func_name(....)....;
+...
+hive> drop function func_name;
+
+UDF are used in the map phase
+UDAFs are used on a reduce phase
+UDTFs can be used in both scenarios.
+
+We can use LATERAL VIEW statement to merge output from UDTF
