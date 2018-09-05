@@ -1,0 +1,34 @@
+Q) What is Explode and Lateral View in Hive?
+-----------------------------------------------
+https://cwiki.apache.org/confluence/display/Hive/LanguageManual+LateralView
+
+Lateral view is used in conjunction with user-defined table generating functions such as explode().UDTF generates zero or more output 
+rows for each input row. A lateral view first applies the UDTF to each row of base table and then joins 
+resulting output rows to the input rows to form a virtual table having the supplied table alias.
+
+A lateral view with explode() can be used to convert adid_list into separate rows using the query:
+
+Page_id			adid_list
+front_page		[1, 2, 3]
+contact_page	[3, 4, 5]
+
+SELECT pageid, adid
+FROM pageAds LATERAL VIEW explode(adid_list) adTable AS adid;
+
+Page_id         adid_list
+"front_page"	    1
+"front_page"	    2
+"front_page"	    3
+"contact_page"	  3
+"contact_page"	  4
+"contact_page"	  5
+
+
+LATERAL VIEW clauses are applied in the order that they appear.
+
+SELECT myCol1, col2 FROM baseTable
+LATERAL VIEW explode(col1) myTable1 AS myCol1;
+
+SELECT myCol1, myCol2 FROM baseTable
+LATERAL VIEW explode(col1) myTable1 AS myCol1
+LATERAL VIEW explode(col2) myTable2 AS myCol2;
