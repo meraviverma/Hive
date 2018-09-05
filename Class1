@@ -32,3 +32,6 @@ LATERAL VIEW explode(col1) myTable1 AS myCol1;
 SELECT myCol1, myCol2 FROM baseTable
 LATERAL VIEW explode(col1) myTable1 AS myCol1
 LATERAL VIEW explode(col2) myTable2 AS myCol2;
+
+To include null value use outer:
+SELECT * FROM src LATERAL VIEW OUTER explode(array()) C AS a limit 10;
