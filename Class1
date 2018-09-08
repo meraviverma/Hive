@@ -35,3 +35,34 @@ LATERAL VIEW explode(col2) myTable2 AS myCol2;
 
 To include null value use outer:
 SELECT * FROM src LATERAL VIEW OUTER explode(array()) C AS a limit 10
+
+----------------------------------------------------------------------------------------------------------------------------------------
+Data:
+{"student":1,"course":["a","b","c"]
+{"student":2,"course":["a","b"]}
+{"student":3,"course":["b","c"]}
+{"student":4,"course":["a","c"]}
+
++---------+-------+
+|   course|student|
++---------+-------+
+|[a, b, c]|      1|
+|   [a, b]|      2|
+|   [b, c]|      3|
+|[a, c, d]|      4|
++---------+-------+
+
+hivecontext.sql("select * from order").show()
+hivecontext.sql("select student,skill from order LATERAL VIEW explode(course) skill_set AS skill").show()
+hivecontext.sql("select count(*),skill  from (select student,skill from order LATERAL VIEW explode(course) skill_set AS skill) group by (skill)").show()
+
+Output:
++--------+-----+
+|count(1)|skill|
++--------+-----+
+|       1|    d|
+|       3|    c|
+|       3|    b|
+|       3|    a|
++--------+-----+
+
