@@ -1,0 +1,207 @@
+We are going to study windowing function in Hive
+----------------------------------------------------
+LAG
+------
+The number of rows to lag can optionally be specified. If the number of rows to lag is not specified, the lag is one row.
+Returns null when the lag for the current row extends before the beginning of the window.
+
+LEAD
+-----
+The number of rows to lead can optionally be specified. If the number of rows to lead is not specified, the lead is one row.
+Returns null when the lead for the current row extends beyond the end of the window.
+
+FIRST_VALUE
+--------------
+LAST_VALUE
+--------------
+The OVER clause
+
+OVER with standard aggregates:
+COUNT
+SUM
+MIN
+MAX
+AVG
+OVER with a PARTITION BY statement with one or more partitioning columns.
+
+OVER with PARTITION BY and ORDER BY with one or more partitioning and/or ordering columns.
+Analytics functions
+
+RANK
+ROW_NUMBER
+DENSE_RANK
+CUME_DIST
+PERCENT_RANK
+NTILE
+
+EXAMPLE CODE:
+----------------
+LAG
+-------
+hivecontext.sql("select ticker,date_,close,lag(close,2) over( order by ticker) as yesterday_price from stock").show()
+
++------+--------+-----+---------------+
+|ticker|   date_|close|yesterday_price|
++------+--------+-----+---------------+
+|     A|20100721|27.58|           null|
+|     A|20100722|28.72|           null|
+|     A|20100723| 29.3|          27.58|
+|     A|20100726|29.64|          28.72|
+|     A|20100727|28.87|           29.3|
+|     A|20100728|28.78|          29.64|
+|     A|20100729|28.15|          28.87|
+|     A|20100730|27.93|          28.78|
+|     A|20100802|28.82|          28.15|
+|     A|20100803|27.84|          27.93|
+|     A|20100804|28.29|          28.82|
+|     A|20100805|28.46|          27.84|
+|     A|20100806|28.73|          28.29|
+|     A|20100809|29.82|          28.46|
+|     A|20100810|29.46|          28.73|
+|     A|20100811|28.22|          29.82|
+|     A|20100812|27.53|          29.46|
+|     A|20100813|27.35|          28.22|
+|     A|20100816|27.16|          27.53|
+|     A|20100817|29.28|          27.35|
++------+--------+-----+---------------+
+
+LEAD
+----------
+hivecontext.sql("select ticker,date_,close,lead(close,2) over( order by ticker) as yesterday_price from stock").show()
+
++------+--------+-----+---------------+
+|ticker|   date_|close|yesterday_price|
++------+--------+-----+---------------+
+|     A|20100721|27.58|           29.3|
+|     A|20100722|28.72|          29.64|
+|     A|20100723| 29.3|          28.87|
+|     A|20100726|29.64|          28.78|
+|     A|20100727|28.87|          28.15|
+|     A|20100728|28.78|          27.93|
+|     A|20100729|28.15|          28.82|
+|     A|20100730|27.93|          27.84|
+|     A|20100802|28.82|          28.29|
+|     A|20100803|27.84|          28.46|
+|     A|20100804|28.29|          28.73|
+|     A|20100805|28.46|          29.82|
+|     A|20100806|28.73|          29.46|
+|     A|20100809|29.82|          28.22|
+|     A|20100810|29.46|          27.53|
+|     A|20100811|28.22|          27.35|
+|     A|20100812|27.53|          27.16|
+|     A|20100813|27.35|          29.28|
+|     A|20100816|27.16|          28.54|
+|     A|20100817|29.28|          28.56|
++------+--------+-----+---------------+
+
+hivecontext.sql("select ticker,date_,close,case(lead(close,1) over( order by ticker) - close )>0 when true then 'higher' when false then 'lesser' end as charges from stock").show()
+
++------+--------+-----+-------+
+|ticker|   date_|close|charges|
++------+--------+-----+-------+
+|     A|20100721|27.58| higher|
+|     A|20100722|28.72| higher|
+|     A|20100723| 29.3| higher|
+|     A|20100726|29.64| lesser|
+|     A|20100727|28.87| lesser|
+|     A|20100728|28.78| lesser|
+|     A|20100729|28.15| lesser|
+|     A|20100730|27.93| higher|
+|     A|20100802|28.82| lesser|
+|     A|20100803|27.84| higher|
+|     A|20100804|28.29| higher|
+|     A|20100805|28.46| higher|
+|     A|20100806|28.73| higher|
+|     A|20100809|29.82| lesser|
+|     A|20100810|29.46| lesser|
+|     A|20100811|28.22| lesser|
+|     A|20100812|27.53| lesser|
+|     A|20100813|27.35| lesser|
+|     A|20100816|27.16| higher|
+|     A|20100817|29.28| lesser|
++------+--------+-----+-------+
+
+FIRST_VALUE()
+---------------
+hivecontext.sql("select  distinct ticker,first_value(high) over(partition by ticker order by ticker) as first_high from stock ").show()
+
++------+----------+
+|ticker|first_high|
++------+----------+
+|   GIS|     35.56|
+|     K|     51.84|
+|   LEN|     14.84|
+|   AIV|      21.2|
+|   AVY|     34.79|
+|   RRD|     16.44|
+|  BF.B|      62.7|
+|   MMM|     83.11|
+|   PKI|     19.34|
+|   PPG|     65.51|
+|    RF|      6.75|
+|   AXP|     42.65|
+|    CI|      31.5|
+|   IRM|    24.325|
+|   WEC|      54.5|
+|   PFG|      24.9|
+|    PM|     50.86|
+|   SNA|   44.1599|
+|  ESRX|     46.53|
+|   OXY|     81.87|
++------+----------+
+
+hivecontext.sql("select   ticker,first_value(high) over(partition by ticker order by ticker) as first_high from stock ").show()
+
++------+-----------+
+|ticker|first_value|
++------+-----------+
+|   GIS|      35.56|
+|   GIS|      35.56|
+|   GIS|      35.56|
+|   GIS|      35.56|
+|   GIS|      35.56|
+|   GIS|      35.56|
+|   GIS|      35.56|
+|   GIS|      35.56|
+|   GIS|      35.56|
+|   GIS|      35.56|
+|   GIS|      35.56|
+|   GIS|      35.56|
+|   GIS|      35.56|
+|   GIS|      35.56|
+|   GIS|      35.56|
+|   GIS|      35.56|
+|   GIS|      35.56|
+|   GIS|      35.56|
+|   GIS|      35.56|
+|   GIS|      35.56|
++------+-----------+
+
+LAST_VALUE
+------------
+hivecontext.sql("select   ticker,last_value(high) over(partition by ticker order by ticker) as last_value from stock ").show()
+
++------+----------+
+|ticker|last_value|
++------+----------+
+|   GIS|      35.2|
+|   GIS|      35.2|
+|   GIS|      35.2|
+|   GIS|      35.2|
+|   GIS|      35.2|
+|   GIS|      35.2|
+|   GIS|      35.2|
+|   GIS|      35.2|
+|   GIS|      35.2|
+|   GIS|      35.2|
+|   GIS|      35.2|
+|   GIS|      35.2|
+|   GIS|      35.2|
+|   GIS|      35.2|
+|   GIS|      35.2|
+|   GIS|      35.2|
+|   GIS|      35.2|
+|   GIS|      35.2|
+|   GIS|      35.2|
+|   GIS|      35.2|
++------+----------+
