@@ -94,7 +94,8 @@ hivecontext.sql("select ticker,date_,close,lead(close,2) over( order by ticker) 
 |     A|20100817|29.28|          28.56|
 +------+--------+-----+---------------+
 
-hivecontext.sql("select ticker,date_,close,case(lead(close,1) over( order by ticker) - close )>0 when true then 'higher' when false then 'lesser' end as charges from stock").show()
+hivecontext.sql("select ticker,date_,close,case(lead(close,1) over( order by ticker) - close )>0 when true then 'higher' when false 
+then 'lesser' end as charges from stock").show()
 
 +------+--------+-----+-------+
 |ticker|   date_|close|charges|
@@ -205,3 +206,82 @@ hivecontext.sql("select   ticker,last_value(high) over(partition by ticker order
 |   GIS|      35.2|
 |   GIS|      35.2|
 +------+----------+
+
+cume_dist
+------------------------
+It returns the cumulative distribution of a value. It results from 0 to 1. 
+For suppose if the total number of records are 10 then for the 1st row the cume_dist will be 1/10 and for the second 2/10 and 
+so on till 10/10.
+
+This cume_dist will be calculated in accordance with the result set returned by the over clause. The below query will result in the 
+cumulative of each record for every ticker.
+
+hivecontext.sql("select ticker,close,cume_dist() over (partition by ticker order by close) as cummulative from stock").show()
+
++------+-----+--------------------+
+|ticker|close|         cummulative|
++------+-----+--------------------+
+|   GIS|33.57|0.045454545454545456|
+|   GIS| 33.7| 0.09090909090909091|
+|   GIS|33.81| 0.13636363636363635|
+|   GIS|33.85| 0.18181818181818182|
+|   GIS|33.98|  0.2727272727272727|
+|   GIS|33.98|  0.2727272727272727|
+|   GIS|34.13|  0.3181818181818182|
+|   GIS| 34.2| 0.36363636363636365|
+|   GIS|34.35|  0.4090909090909091|
+|   GIS|34.43| 0.45454545454545453|
+|   GIS|34.62|                 0.5|
+|   GIS|34.86|  0.5454545454545454|
+|   GIS|35.03|  0.5909090909090909|
+|   GIS|35.13|  0.6363636363636364|
+|   GIS|35.14|  0.6818181818181818|
+|   GIS|35.15|  0.7272727272727273|
+|   GIS|35.36|  0.7727272727272727|
+|   GIS|35.38|  0.8181818181818182|
+|   GIS|35.44|  0.9090909090909091|
+|   GIS|35.44|  0.9090909090909091|
++------+-----+--------------------+
+
+Percent_rank
+--------------------
+It returns the percentage rank of each row within the result set of over clause. 
+Percent_rank is calculated in accordance with the rank of the row and the calculation is as follows (rank-1)/(total_rows_in_group – 1). 
+If the result set has only one row then the percent_rank will be 0.
+
+hivecontext.sql("select ticker,close,percent_rank() over (partition by ticker order by close) as percent_rank_closing from stock").show()
+
+Ntile
+------------
+It returns the bucket number of the particular value. For suppose if you say Ntile(5) then it will create 5 buckets based on the 
+result set of the over clause after that it will place the first 20% of the records in the 1st bucket and so on till 5th bucket.
+
+The below query will create 5 buckets for every ticker and the first 20% records for every ticker will be in the 1st bucket and so on.
+
+hivecontext.sql("select ticker,close,Ntile() over (partition by ticker order by close) as Ntile_closing from stock").show()
+
++------+-----+-------------+
+|ticker|close|Ntile_closing|
++------+-----+-------------+
+|   GIS|33.57|            1|
+|   GIS| 33.7|            1|
+|   GIS|33.81|            1|
+|   GIS|33.85|            1|
+|   GIS|33.98|            1|
+|   GIS|33.98|            1|
+|   GIS|34.13|            1|
+|   GIS| 34.2|            1|
+|   GIS|34.35|            1|
+|   GIS|34.43|            1|
+|   GIS|34.62|            1|
+|   GIS|34.86|            1|
+|   GIS|35.03|            1|
+|   GIS|35.13|            1|
+|   GIS|35.14|            1|
+|   GIS|35.15|            1|
+|   GIS|35.36|            1|
+|   GIS|35.38|            1|
+|   GIS|35.44|            1|
+|   GIS|35.44|            1|
++------+-----+-------------+
+
