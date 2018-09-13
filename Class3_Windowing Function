@@ -124,6 +124,8 @@ then 'lesser' end as charges from stock").show()
 
 FIRST_VALUE()
 ---------------
+It returns the value of the first row from that window.
+
 hivecontext.sql("select  distinct ticker,first_value(high) over(partition by ticker order by ticker) as first_high from stock ").show()
 
 +------+----------+
@@ -180,6 +182,9 @@ hivecontext.sql("select   ticker,first_value(high) over(partition by ticker orde
 
 LAST_VALUE
 ------------
+
+It is the reverse of FIRST_VALUE. It returns the value of the last row from that window. 
+
 hivecontext.sql("select   ticker,last_value(high) over(partition by ticker order by ticker) as last_value from stock ").show()
 
 +------+----------+
