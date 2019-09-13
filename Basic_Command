@@ -50,3 +50,56 @@ Dynamic partitioning.
 hive optimizer will parse the query for filter condititon.
 Note: Columns which are a part of partitioner columns are not included in table definitions.
 
+-----------------------------------------------------------------------------------------------------------
+Important Link:
+-------------------
+https://cwiki.apache.org/confluence/display/Hive/LanguageManual+DDL#LanguageManualDDL-AlterTableProperties
+
+show databases;
+show tables;
+create database mydb;
+use mydb;
+desc formatted partitioned_user;
+desc partitioned_user;
+ 
+hive> 
+create table partitioned_user(
+firstname varchar(64),
+lastname varchar(64),
+address string,
+city varchar(64),
+post string,
+phone1 varchar(64),
+phone2 string,
+email string,
+web string
+)
+partitioned by (country varchar(64), state varchar(64))
+ROW FORMAT DELIMITED
+FIELDS TERMINATED BY ','
+LINES TERMINATED BY '\n'
+tblproperties("skip.header.line.count"="1"); 
+stored as textfile;
+OK
+Time taken: 0.547 seconds
+
+hive> describe formatted partitioned_user;
+
+hive> load data local inpath '/home/admin/Desktop/Learning/Hive/data/staticinput.txt' into table partitioned_user1 partition(country='US',state='CA');
+Loading data to table mydb.partitioned_user1 partition (country=US, state=CA)
+OK
+Time taken: 0.72 seconds
+
+
+Alter:
+-----------
+1)Change column name and column data type.
+Ans: hive> alter table mydb.partitioned_user1 change phone2 phone2 varchar(64);
+
+2)adding table properties:
+hive> alter table partitioned_user set  tblproperties("skip.header.line.count" = "1");
+
+3)Drop Partition
+ALTER TABLE partitioned_user DROP IF EXISTS PARTITION(country='US', state='CA');
+
+
