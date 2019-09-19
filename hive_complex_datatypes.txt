@@ -1,1 +1,169 @@
 
+https://acadgild.com/blog/hive-complex-data-types-with-examples
+
+TINYINT : 1-byte signed integer, from -128 to 127
+SMALLINT : 2-byte signed integer, from -32,768 to 32,767
+INT : 4-byte signed integer, from -2,147,483,648 to 2,147,483,647
+BIGINT : 8-byte signed integer, from -9,223,372,036,854,775,808 to 9,223,372,036,854,775,807
+FLOAT : 4-byte single precision floating point number
+DOUBLE : 8-byte double precision floating point number
+DECIMAL : Hive 0.13.0 introduced user definable precision and scale
+
+String Types
+------------------
+STRING
+VARCHAR
+CHAR
+
+Date/Time Types
+----------------------
+TIMESTAMP
+DATE
+
+Misc Types
+----------------
+BOOLEAN
+BINARY
+
+Apart from these primitive data types, Hive offers some complex data types which are as listed below:
+
+Complex Data Types
+------------------------
+arrays: ARRAY<data_type>
+maps: MAP<primitive_type, data_type>
+structs: STRUCT<col_name : data_type [COMMENT col_comment], …>
+
+----------------
+ARRAY
+------------------
+create table Temperature(`date` string,city string,MyTemp array<double>) row format delimited fields terminated by '\t' collection 
+items terminated by ',';
+Note: When we have reserved keyowrd we need to use ``(tilt sign) for that column name.
+
+hive> desc Temperature;
+OK
+date                    string
+city                    string
+mytemp                  array<double>
+Time taken: 0.024 seconds, Fetched: 3 row(s)
+
+Data
+--------
+[admin@localhost data]$ cat Temperature.txt
+1/2/17  karnatka        23.2,22.3,20.5,25.5,24.5,20.3
+1/2/17  maharastra      25.2,23.3,22.5,24.5,24.5,26.3
+1/2/17  tamilnadu       24.2,24.3,25.5,20.5,21.5,20.3
+1/2/17  andhrapradesh   28.2,21.3,28.5,23.5,21.5,20.3
+1/2/17  jharkand        25.2,23.3,20.5,22.5,23.5,20.3
+
+
+hive> load data local inpath '/home/admin/Desktop/Learning/Hive/data/Temperature.txt' into table temperature;
+Loading data to table mydb.temperature
+OK
+Time taken: 0.893 seconds
+hive> select * from temperature;
+OK
+1/2/17  karnatka        [23.2,22.3,20.5,25.5,24.5,20.3]
+1/2/17  maharastra      [25.2,23.3,22.5,24.5,24.5,26.3]
+1/2/17  tamilnadu       [24.2,24.3,25.5,20.5,21.5,20.3]
+1/2/17  andhrapradesh   [28.2,21.3,28.5,23.5,21.5,20.3]
+1/2/17 jharkand         [25.2,23.3,20.5,22.5,23.5,20.3]
+Time taken: 0.906 seconds, Fetched: 5 row(s)
+
+hive> select city,mytemp[3] from temperature;
+OK
+karnatka        25.5
+maharastra      24.5
+tamilnadu       20.5
+andhrapradesh   23.5
+jharkand        22.5
+Time taken: 0.14 seconds, Fetched: 5 row(s)
+
+----------------------------------
+MAP
+----------------------------------
+[admin@localhost data]$ cat schools.txt
+secondryschool  assam   male    2015:56344,2016:57573,2017:58389
+secondryschool  assam   female  2015:197,2016:87889,2017:58389
+secondryschool  bihar   male    2015:36452,2016:43947,2017:47727
+secondryschool  bihar   female  2015:6697,2016:13483,2017:27727
+secondryschool  chandigarh      male    2015:3345,2016:4489,2017:27314
+secondryschool  chhattisgarh    male    2015:13818,2016:32313,2017:43423
+
+hive> create table myschool(schooltype string,state string,gender string,total map<int,int>) row format delimited fields 
+terminated by '\t' collection items terminated by ',' map keys terminated by ':';
+OK
+Time taken: 0.078 seconds
+hive> desc myschool;
+OK
+schooltype              string
+state                   string
+gender                  string
+total                   map<int,int>
+Time taken: 0.022 seconds, Fetched: 4 row(s)
+
+hive> load data local inpath '/home/admin/Desktop/Learning/Hive/data/schools.txt' into table myschool;
+Loading data to table mydb.myschool
+OK
+Time taken: 0.267 seconds
+hive> select * from myschool;
+OK
+secondryschool  assam   male    {2015:56344,2016:57573,2017:58389}
+secondryschool  assam   female  {2015:197,2016:87889,2017:58389}
+secondryschool  bihar   male    {2015:36452,2016:43947,2017:47727}
+secondryschool  bihar   female  {2015:6697,2016:13483,2017:27727}
+secondryschool  chandigarh      male    {2015:3345,2016:4489,2017:27314}
+secondryschool  chhattisgarh    male    {2015:13818,2016:32313,2017:43423}
+Time taken: 0.14 seconds, Fetched: 6 row(s)
+
+hive> select total[2016] from myschool where state='assam';
+OK
+57573
+87889
+Time taken: 0.349 seconds, Fetched: 2 row(s)
+hive> select total[2016] from myschool where state='bihar' and gender='male';
+OK
+43947
+Time taken: 0.133 seconds, Fetched: 1 row(s)
+
+STRUCT
+-----------------------
+[admin@localhost data]$ cat bikes.txt
+Yahama Ray-Z    air-cool,150.3,15.0,5
+hero    air-cool,120.0,13.9,4
+tvs     air-cool,159.0,15.4,4
+honda   fuel-inject,223,20,6
+
+hive> create table mybike(name string,bikefeatures struct<engine_type:string,cc:float,power:float,gear:int>) row format delimited 
+fields terminated by '\t' collection items terminated by ',';
+OK
+Time taken: 0.193 seconds
+hive> desc mybike;
+OK
+name                    string
+bikefeatures            struct<engine_type:string,cc:float,power:float,gear:int>
+Time taken: 0.028 seconds, Fetched: 2 row(s)
+
+hive> load data local inpath '/home/admin/Desktop/Learning/Hive/data/bikes.txt' into table mybike;
+Loading data to table mydb.mybike
+OK
+Time taken: 0.26 seconds
+hive> select * from mybike;
+OK
+Yahama Ray-Z    {"engine_type":"air-cool","cc":150.3,"power":15.0,"gear":5}
+hero    {"engine_type":"air-cool","cc":120.0,"power":13.9,"gear":4}
+tvs     {"engine_type":"air-cool","cc":159.0,"power":15.4,"gear":4}
+honda   {"engine_type":"fuel-inject","cc":223.0,"power":20.0,"gear":6}
+Time taken: 0.119 seconds, Fetched: 4 row(s)
+hive> select bikefeatures.engine_type from mybike;
+OK
+air-cool
+air-cool
+air-cool
+fuel-inject
+Time taken: 0.124 seconds, Fetched: 4 row(s)
+hive> select bikefeatures.engine_type from mybike where name='hero';
+OK
+air-cool
+Time taken: 0.131 seconds, Fetched: 1 row(s)
+hive>
