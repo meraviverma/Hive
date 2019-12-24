@@ -14,6 +14,14 @@ show create table bucket_table; //It shows the create statement of the hive tabl
 drop table employee
 drop view viewname;
 
+Dates
+-------------------
+DATE values describe a particular year/month/day, in the form YYYY-­MM-­DD. For example, DATE '2013-­01-­01'. 
+Date types do not have a time of day component. The range of 
+values supported for the Date type is 0000-­01-­01 to 9999-­12-­31, dependent on support by the primitive Java Date type.
+
+ load data local inpath "/home/admin/Desktop/Learning/Hive/data/emp_hist_rec.txt" into table emp_hist;
+ 
 --If we want to see the columns names of the table in HiveQl, the following hive conf property should be set to true.
 set hive.cli.print.header=true;
 
