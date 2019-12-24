@@ -39,6 +39,28 @@ eff_dt                  date
 exp_dt                  date
 
 
+-- --------Alter hive table to drop column------------------
+
+You cannot drop column directly from a table using command ALTER TABLE table_name drop  col_name;
+
+Example:
+hive> describe emp_stagg;
+OK
+col_name        data_type       comment
+empid                   int
+city                    string
+eff_dt                  date
+exp_dt                  date
+
+
+alter table emp_stagg replace columns(empid int,city string);
+
+hive> describe emp_stagg;
+OK
+col_name        data_type       comment
+empid                   int
+city                    string
+Time taken: 0.021 seconds, Fetched: 2 row(s)
 
 
 Hive Tables
