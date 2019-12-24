@@ -17,6 +17,30 @@ drop view viewname;
 --If we want to see the columns names of the table in HiveQl, the following hive conf property should be set to true.
 set hive.cli.print.header=true;
 
+--Create a new table called emp_stagg with same column names and data types of emp_hist table.
+
+hive> describe  emp_hist;
+OK
+empid                   int
+city                    string
+eff_dt                  date
+exp_dt                  date
+
+hive> create table emp_stagg like emp_hist;
+OK
+Time taken: 0.097 seconds
+
+hive> describe emp_stagg;
+OK
+col_name        data_type       comment
+empid                   int
+city                    string
+eff_dt                  date
+exp_dt                  date
+
+
+
+
 Hive Tables
 ------------------
 Hive has two types of tables:
