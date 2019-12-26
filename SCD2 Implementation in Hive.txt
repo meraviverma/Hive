@@ -82,6 +82,8 @@ stg.empid       stg.city        eff_dt  		exp_dt
 106     		Mp      		2019-12-24      9999-12-31
 Time taken: 16.88 seconds, Fetched: 4 row(s)
 
+STEP4: Select all updated old records from the HIST table using exclusive left join with STG table and set their expiry date as shown below:
+
 hive> select hist.*,CURRENT_DATE as exp_dt from (select empid,city,eff_dt from emp_hist where exp_dt='9999-12-31') hist left join emp_stagg stg on hist.empid=stg.empid where hist.empid is null or hist.city != stg.city;
 
 
