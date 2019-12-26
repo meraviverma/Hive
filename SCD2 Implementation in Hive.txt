@@ -1,3 +1,5 @@
+https://community.cloudera.com/t5/Support-Questions/Best-and-Easy-way-to-implement-and-create-SCD2-in-Hive-and/td-p/182059
+
 hive> create table emp_hist(
     > empid int,
     > city String,
