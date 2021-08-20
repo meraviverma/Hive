@@ -1,0 +1,490 @@
+hdfs fsck /data -files -bl
+hdfs fsck /data -files -blocks -locations
+
+show databases;
+
+create database ibm;
+[root@sandbox ~]# vi samplexml1
+[root@sandbox ~]# cat samplexml1
+<rec>
+  <name>Ravi</name>
+  <age>25</age>
+  <sex>m</sex>
+</rec>
+<rec>
+  <name>Rani</name>
+  <sex>f</sex>
+  <city>Hyd</city>
+</rec>
+[root@sandbox ~]#
+
+above xml file has 2 records,
+when this file is loaded into hive table, hive treats, each line as a record,
+  as per xml == two records.
+  as per hive --> 10 records(rows.).
+
+this data is not ready for hive,
+hive expects total xml record in a single line.
+so data preperation step is required.
+
+Prepare a mapreduce Job , which can convert xml record into single row.
+
+
+hive> create table samp(line string);
+OK
+Time taken: 38.887 seconds
+hive> load data local inpath 'samplexml1' into table samp;
+Loading data to table ibm.samp
+Table ibm.samp stats: [numFiles=1, totalSize=137]
+OK
+Time taken: 13.81 seconds
+hive> select * from samp;
+OK
+<rec>
+  <name>Ravi</name>
+  <age>25</age>
+  <sex>m</sex>
+</rec>
+<rec>
+  <name>Rani</name>
+  <sex>f</sex>
+  <city>Hyd</city>
+</rec>
+Time taken: 9.62 seconds, Fetched: 10 row(s)
+hive>
+
+We will need this type of data.
+
+[root@sandbox ~]# vi xml1
+[root@sandbox ~]# cat xml1
+<rec><name>Ravi</name><age>25</age><city>hyd</city></rec>
+<rec><name>Rani</name><age>24</age><sex>f</sex></rec>
+<rec><name>Sampath</name><sex>m</sex><city>Del</city></rec>
+
+hive>  load data local inpath 'xml1' into table raw;
+Loading data to table ibm.raw
+Table ibm.raw stats: [numFiles=1, totalSize=172]
+OK
+Time taken: 10.186 seconds
+hive> select * from raw;
+OK
+<rec><name>Ravi</name><age>25</age><city>hyd</city></rec>
+<rec><name>Rani</name><age>24</age><sex>f</sex></rec>
+<rec><name>Sampath</name><sex>m</sex><city>Del</city></rec>
+Time taken: 10.538 seconds, Fetched: 3 row(s)
+
+hive> select count(*) from raw;
+Query ID = root_20210218003153_7a3542b9-d91b-437e-8326-4ab12d4705f1
+Total jobs = 1
+Launching Job 1 out of 1
+Tez session was closed. Reopening...
+Session re-established.
+
+
+Status: Running (Executing on YARN cluster with App id application_1613513351224_0003)
+
+--------------------------------------------------------------------------------
+        VERTICES      STATUS  TOTAL  COMPLETED  RUNNING  PENDING  FAILED  KILLED
+--------------------------------------------------------------------------------
+Map 1 ..........   SUCCEEDED      1          1        0        0       0       0
+Reducer 2 ......   SUCCEEDED      1          1        0        0       0       0
+--------------------------------------------------------------------------------
+VERTICES: 02/02  [==========================>>] 100%  ELAPSED TIME: 56.35 s
+--------------------------------------------------------------------------------
+OK
+3
+Time taken: 178.126 seconds, Fetched: 1 row(s)
+
+hive> select xpath_string(line,'rec/name') from raw;
+OK
+Ravi
+Rani
+Sampath
+Time taken: 14.227 seconds, Fetched: 3 row(s)
+hive> select xpath_string(line,'rec/name'),xpath_int(line,'rec/age'),xpath_string(line,'rec/sex'),xpath_string(line,'rec/city') from raw;
+OK
+Ravi    25              hyd
+Rani    24      f
+Sampath 0       m       Del
+Time taken: 13.715 seconds, Fetched: 3 row(s)
+
+if string fields is missed, it returns blank string, if numeric field is missed it returns 0.
+
+
+-------------------------------------------------------------------------
+xml with nested tags.
+-------------------------------------------------------------------------
+<rec>
+	<name>
+		<fname>Ravi</fname>
+		<lname>kumar</lname>
+	</name>
+	<age>25</age>
+	<contact>
+		<email>
+			<personal>ravi@gmail.com</personal>
+			<official>ravi@infy.com</official>
+		</email>
+		<phone>
+			<mobile>12345</mobile>
+			<office>12346</office>
+			<residence>12347</residence>
+		</phone>
+	</contact>
+</rec>
+
+[root@sandbox ~]# cat xml2
+<rec><name><fname>Ravi</fname><lname>kumar</lname></name><age>25</age><contact><email><personal>ravi@gmail.com</personal><official>ravi@infy.com</official></email><phone><mobile>12345</mobile><office>12346</office><residence>12347</residence></phone></contact></rec>
+
+hive> create table xrwa(line string);
+OK
+Time taken: 8.515 seconds
+hive> load data local inpath 'xml2' into table xrwa;
+Loading data to table ibm.xrwa
+Table ibm.xrwa stats: [numFiles=1, totalSize=267]
+OK
+Time taken: 17.34 seconds
+hive> select * from xrwa;
+OK
+<rec><name><fname>Ravi</fname><lname>kumar</lname></name><age>25</age><contact><email><personal>ravi@gmail.com</personal><official>ravi@infy.com</official></email><phone><mobile>12345</mobile><office>12346</office><residence>12347</residence></phone></contact></rec>
+Time taken: 6.483 seconds, Fetched: 1 row(s)
+hive> select count(*) from xrwa;
+Query ID = root_20210218232458_1b051b2d-076b-46e5-b965-a3066a00700a
+Total jobs = 1
+Launching Job 1 out of 1
+Tez session was closed. Reopening...
+Session re-established.
+
+
+Status: Running (Executing on YARN cluster with App id application_1613513351224_0004)
+
+--------------------------------------------------------------------------------
+        VERTICES      STATUS  TOTAL  COMPLETED  RUNNING  PENDING  FAILED  KILLED
+--------------------------------------------------------------------------------
+Map 1 ..........   SUCCEEDED      1          1        0        0       0       0
+Reducer 2 ......   SUCCEEDED      1          1        0        0       0       0
+--------------------------------------------------------------------------------
+VERTICES: 02/02  [==========================>>] 100%  ELAPSED TIME: 63.25 s
+--------------------------------------------------------------------------------
+OK
+1
+Time taken: 157.362 seconds, Fetched: 1 row(s)
+
+hive> create table info(fname string,
+    > lname string,
+    > age int,personal_email string,
+    > official_email string,
+    > mobile string,office string,
+    > residence string);
+OK
+Time taken: 12.216 seconds
+
+
+insert overwrite table info
+select xpath_string(line,'rec/name/fname'),
+xpath_string(line,'rec/name/lname'),
+xpath_int(line,'rec/age'),
+xpath_string(line,'rec/contact/email/personal'),
+xpath_string(line,'rec/contact/email/official'),
+xpath_string(line,'rec/contact/phone/mobile'),
+xpath_string(line,'rec/contact/phone/office'),
+xpath_string(line,'rec/contact/phone/residence')
+from xraw;
+
+hive> select * from info;
+OK
+Ravi    kumar   25      ravi@gmail.com  ravi@infy.com   12345   12346   12347
+Time taken: 11.423 seconds, Fetched: 1 row(s)
+hive>
+
+---------------------------------
+xml with collections.
+---------------------------------
+<rec>
+	<name>Amar</name>
+	<qual>Btech</qual>
+	<qual>Mtech</qual>
+</rec>
+<rec>
+	<name>Amala</name>
+	<qual>Bsc</qual>
+	<qual>Msc</qual>
+	<qual>Mtech</qual>
+</rec>
+<rec>
+	<name>Akash</name>
+	<qual>Btech</qual>
+	<qual>Mba</qual>
+</rec>
+
+[root@sandbox ~]# cat xml3
+<rec><name>Amar</name><qual>Btech</qual><qual>Mtech</qual></rec>
+<rec><name>Amala</name><qual>Bsc</qual><qual>Msc</qual><qual>Mtech</qual></rec>
+<rec><name>Akash</name><qual>Btech</qual><qual>Mba</qual></rec>
+[root@sandbox ~]#
+
+hive> create table yraw(line string);
+OK
+Time taken: 7.857 seconds
+hive> load data local inpath 'xml3' into table yraw;
+Loading data to table ibm.yraw
+Table ibm.yraw stats: [numFiles=1, totalSize=209]
+OK
+Time taken: 13.639 seconds
+hive> select * from yraw;
+OK
+<rec><name>Amar</name><qual>Btech</qual><qual>Mtech</qual></rec>
+<rec><name>Amala</name><qual>Bsc</qual><qual>Msc</qual><qual>Mtech</qual></rec>
+<rec><name>Akash</name><qual>Btech</qual><qual>Mba</qual></rec>
+Time taken: 8.169 seconds, Fetched: 3 row(s)
+hive> create table raw2(name string,qual array<string>);
+OK
+Time taken: 11.176 seconds
+hive> insert overwrite table raw2
+    > select xpath_string(line,'rec/name'),
+    > xpath(line,'rec/qual/text()')
+    > from yraw;
+Query ID = root_20210219001230_df4e3496-3e0b-4ee4-8302-f24160c7b31d
+Total jobs = 1
+Launching Job 1 out of 1
+Tez session was closed. Reopening...
+Session re-established.
+
+
+Status: Running (Executing on YARN cluster with App id application_1613513351224_0006)
+
+--------------------------------------------------------------------------------
+        VERTICES      STATUS  TOTAL  COMPLETED  RUNNING  PENDING  FAILED  KILLED
+--------------------------------------------------------------------------------
+Map 1 ..........   SUCCEEDED      1          1        0        0       0       0
+--------------------------------------------------------------------------------
+VERTICES: 01/01  [==========================>>] 100%  ELAPSED TIME: 33.63 s
+--------------------------------------------------------------------------------
+Loading data to table ibm.raw2
+Table ibm.raw2 stats: [numFiles=1, numRows=3, totalSize=53, rawDataSize=50]
+OK
+Time taken: 87.351 seconds
+
+hive> select * from raw2;
+OK
+Amar    ["Btech","Mtech"]
+Amala   ["Bsc","Msc","Mtech"]
+Akash   ["Btech","Mba"]
+Time taken: 9.664 seconds, Fetched: 3 row(s)
+
+hive> select name,size(qual) from raw2;
+OK
+Amar    2
+Amala   3
+Akash   2
+Time taken: 11.346 seconds, Fetched: 3 row(s)
+
+how to access array elements,by using index numbers indexing starts from 0.
+
+hive> select qual[0], qual[1],
+    > qual[2] from raw2;
+OK
+Btech   Mtech   NULL
+Bsc     Msc     Mtech
+Btech   Mba     NULL
+Time taken: 13.234 seconds, Fetched: 3 row(s)
+
+hive> select * from raw2 where array_contains(qual,'Mtech');
+OK
+Amar    ["Btech","Mtech"]
+Amala   ["Bsc","Msc","Mtech"]
+Time taken: 7.967 seconds, Fetched: 2 row(s)
+hive>
+
+--------------------------
+Flattening Array elements:
+---------------------------
+hive> select explode(qual) as q from raw2;
+Query ID = root_20210219002418_e4388248-d136-4ad2-a7fb-a80c5a5c75e0
+Total jobs = 1
+Launching Job 1 out of 1
+Tez session was closed. Reopening...
+Session re-established.
+
+
+Status: Running (Executing on YARN cluster with App id application_1613513351224_0007)
+
+--------------------------------------------------------------------------------
+        VERTICES      STATUS  TOTAL  COMPLETED  RUNNING  PENDING  FAILED  KILLED
+--------------------------------------------------------------------------------
+Map 1 ..........   SUCCEEDED      1          1        0        0       0       0
+--------------------------------------------------------------------------------
+VERTICES: 01/01  [==========================>>] 100%  ELAPSED TIME: 29.96 s
+--------------------------------------------------------------------------------
+OK
+Btech
+Mtech
+Bsc
+Msc
+Mtech
+Btech
+Mba
+Time taken: 85.632 seconds, Fetched: 7 row(s)
+hive> select name,explode(qual) as q from raw2;
+FAILED: SemanticException [Error 10081]: UDTF's are not supported outside the SELECT clause, nor nested in expressions
+
+-- above statement is invalid,
+   bcoz, udtf s can not be applied with other column expressions.
+
+hive> create table yinfo(name string,qual string);
+OK
+Time taken: 10.595 seconds
+
+hive> insert overwrite table yinfo select name,myq from raw2 lateral view explode(qual) q as myq;
+Query ID = root_20210219002921_ed9087c4-b8f3-49c0-ab69-408e1c238f6e
+Total jobs = 1
+Launching Job 1 out of 1
+
+
+Status: Running (Executing on YARN cluster with App id application_1613513351224_0007)
+
+--------------------------------------------------------------------------------
+        VERTICES      STATUS  TOTAL  COMPLETED  RUNNING  PENDING  FAILED  KILLED
+--------------------------------------------------------------------------------
+Map 1 ..........   SUCCEEDED      1          1        0        0       0       0
+--------------------------------------------------------------------------------
+VERTICES: 01/01  [==========================>>] 100%  ELAPSED TIME: 29.25 s
+--------------------------------------------------------------------------------
+Loading data to table ibm.yinfo
+Table ibm.yinfo stats: [numFiles=1, numRows=7, totalSize=76, rawDataSize=69]
+OK
+Time taken: 52.889 seconds
+
+hive> select * from yinfo;
+OK
+Amar    Btech
+Amar    Mtech
+Amala   Bsc
+Amala   Msc
+Amala   Mtech
+Akash   Btech
+Akash   Mba
+Time taken: 7.631 seconds, Fetched: 7 row(s)
+
+hive> select * from yinfo where qual in ('Msc','Mtech');
+OK
+Amar    Mtech
+Amala   Msc
+Amala   Mtech
+Time taken: 9.821 seconds, Fetched: 3 row(s)
+hive> create table yres(qual string,cnt int);
+OK
+Time taken: 6.413 seconds
+hive> insert overwrite table yres select qual,count(*) from yinfo group by qual;
+Query ID = root_20210219004320_f367c634-ef6e-4d5d-ae37-4e642ab1fe36
+Total jobs = 1
+Launching Job 1 out of 1
+Tez session was closed. Reopening...
+Session re-established.
+
+
+Status: Running (Executing on YARN cluster with App id application_1613513351224_0008)
+
+--------------------------------------------------------------------------------
+        VERTICES      STATUS  TOTAL  COMPLETED  RUNNING  PENDING  FAILED  KILLED
+--------------------------------------------------------------------------------
+Map 1 ..........   SUCCEEDED      1          1        0        0       0       0
+Reducer 2 ......   SUCCEEDED      1          1        0        0       0       0
+--------------------------------------------------------------------------------
+VERTICES: 02/02  [==========================>>] 100%  ELAPSED TIME: 42.01 s
+--------------------------------------------------------------------------------
+Loading data to table ibm.yres
+Table ibm.yres stats: [numFiles=1, numRows=5, totalSize=34, rawDataSize=29]
+OK
+Time taken: 105.626 seconds
+
+hive> select * from yres;
+OK
+Bsc     1
+Btech   2
+Mba     1
+Msc     1
+Mtech   2
+Time taken: 8.847 seconds, Fetched: 5 row(s)
+
+-------------------------------------
+Assignment
+----------------------------------
+<tr>
+	<cid>101</cid>
+	<pr>1000</pr>
+	<pr>3000</pr>
+</tr>
+<tr>
+	<cid>102</cid>
+	<pr>1200</pr>
+	<pr>2000</pr>
+	<pr>5000</pr>
+</tr>
+<tr>
+	<cid>101</cid>
+	<pr>4000</pr>
+</tr>
+
+
+[root@sandbox ~]# cat xml4
+<tr><cid>101</cid><pr>1000</pr><pr>3000</pr></tr>
+<tr><cid>102</cid><pr>1200</pr><pr>2000</pr><pr>5000</pr></tr>
+<tr><cid>101</cid><pr>4000</pr></tr>
+
+hive> create table raw(line string);
+OK
+Time taken: 9.749 seconds
+hive> load data local inpath 'xml4' into table raw;
+Loading data to table sales.raw
+Table sales.raw stats: [numFiles=1, totalSize=150]
+OK
+Time taken: 9.711 seconds
+hive> create table raw2(cid string,pr array<string>);
+OK
+Time taken: 6.685 seconds
+
+hive> insert overwrite table raw2 select xpath_string(line,'tr/cid'),xpath(line,'tr/pr/text()') from raw;
+
+hive> select * from raw3;
+OK
+101     1000
+101     3000
+102     1200
+102     2000
+102     5000
+101     4000
+Time taken: 8.088 seconds, Fetched: 6 row(s)
+hive>
+
+
+hive> create table results(cid string,totbill int);
+OK
+Time taken: 13.979 seconds
+hive> insert overwrite table results select cid,sum(pr) from raw3 group by cid;
+Query ID = root_20210222105955_1c3fad46-3c3c-483c-8bab-0fca28da5608
+Total jobs = 1
+Launching Job 1 out of 1
+Tez session was closed. Reopening...
+Session re-established.
+
+
+Status: Running (Executing on YARN cluster with App id application_1613513351224_0010)
+
+--------------------------------------------------------------------------------
+        VERTICES      STATUS  TOTAL  COMPLETED  RUNNING  PENDING  FAILED  KILLED
+--------------------------------------------------------------------------------
+Map 1 ..........   SUCCEEDED      1          1        0        0       0       0
+Reducer 2 ......   SUCCEEDED      1          1        0        0       0       0
+--------------------------------------------------------------------------------
+VERTICES: 02/02  [==========================>>] 100%  ELAPSED TIME: 104.79 s
+--------------------------------------------------------------------------------
+Loading data to table sales.results
+Table sales.results stats: [numFiles=1, numRows=2, totalSize=18, rawDataSize=16]
+OK
+Time taken: 221.223 seconds
+hive> select * from results;
+OK
+101     8000
+102     8200
+Time taken: 8.672 seconds, Fetched: 2 row(s)
