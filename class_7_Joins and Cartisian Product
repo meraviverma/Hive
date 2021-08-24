@@ -1,0 +1,484 @@
+Hive Lab 14: Joins and Cartisian Product
+
+ Joins 
+______________
+
+   used to collect data from two or more tables.
+
+    joins are two types.
+
+ i) Inner Joins
+ ii) External Joins.
+
+Inner Joins:
+   matching rows with given join condition.
+
+   ex:
+  tab1 ---> name,city
+___________
+  A,hyd
+  B,del
+  c,hyd
+  d,del
+  e,pune
+  f,mumbai   
+
+tab2 ---> city, dept
+_________
+  hyd,production
+  del,hr
+  pune,accounts
+  chennai,admin
+_______________
+
+ inner join --> based on city.
+
+
+ a,hyd,hyd,production
+ B,del,del,hr
+ c,hyd,hyd,production
+ d,del,del,hr
+ e,pune,pune,accounts
+
+outer join -->
+   matching records and non-matching records.
+
+
+ outer joins are 3 types.
+  i) left outer join.
+ ii) right outer join
+ iii) full outer join.
+
+left outer join:
+
+   matchings + non matchings of left side.
+   ( complete presence from left side table).
+   
+ tabx:--> id, dno
+____________
+ 101,11
+ 102,14
+___________
+
+ taby ---> dno,loc
+ _____________
+ 11,hyd
+ 13,del
+ _____________--
+
+
+ tabx  lefter outer join taby --> based on dno.
+
+
+   101,11,11,hyd
+   102,14,null,null
+
+ right outer join -->
+   matchings and non matchings of right side table.
+
+   (complete presence from right side table ).
+
+ tabx right outer join taby -->based on dno.
+
+   101,11,11,hyd
+   null,null,13,del
+
+full outer join --->
+  matchings, non matchings of left side,
+ and  non matchings of right side table.
+
+ tabx full outer join taby ---> based on dno.
+
+   101,11,11,hyd
+   102,14,null,null
+   null,null,13,del
+
+___________________________________
+
+
+[training@localhost ~]$ cat emp
+101,vino,26000,m,11
+102,Sri,25000,f,11
+103,mohan,13000,m,13
+104,lokitha,8000,f,12
+105,naga,6000,m,13
+101,janaki,10000,f,12
+201,aaa,30000,m,12
+202,bbbb,50000,f,13
+203,ccc,10000,f,13
+204,ddddd,50000,m,13
+304,xxx,70000,m,14
+305,yyy,80000,f,15
+[training@localhost ~]$ cat dept
+11,marketing,hyd
+12,hr,del
+13,finance,hyd
+20,prod,hyd
+21,admin,chennai
+[training@localhost ~]$ 
+
+
+hive> create database joinsdb;
+OK
+Time taken: 1.761 seconds
+hive> use joinsdb;
+OK
+Time taken: 0.027 seconds
+hive> create table emp(id int, name string, 
+    >   sal int, sex string, dno int)
+    > row format delimited 
+    >   fields terminated by ',';
+OK
+Time taken: 0.297 seconds
+hive> load data local inpath 'emp' into table emp;
+Copying data from file:/home/training/emp
+Copying file: file:/home/training/emp
+Loading data to table joinsdb.emp
+OK
+Time taken: 0.207 seconds
+hive> select * from emp;
+OK
+101     vino    26000   m       11
+102     Sri     25000   f       11
+103     mohan   13000   m       13
+104     lokitha 8000    f       12
+105     naga    6000    m       13
+101     janaki  10000   f       12
+201     aaa     30000   m       12
+202     bbbb    50000   f       13
+203     ccc     10000   f       13
+204     ddddd   50000   m       13
+304     xxx     70000   m       14
+305     yyy     80000   f       15
+Time taken: 0.194 seconds
+hive> 
+
+hive> load data local inpath 'dept'
+    >  into table dept;
+Copying data from file:/home/training/dept
+Copying file: file:/home/training/dept
+Loading data to table joinsdb.dept
+OK
+Time taken: 0.12 seconds
+hive> select * from dept;
+OK
+11      marketing       hyd
+12      hr      del
+13      finance hyd
+20      prod    hyd
+21      admin   chennai
+Time taken: 0.068 seconds
+hive> 
+
+  Inner Join:
+
+hive> select id,name,sal,sex,l.dno,r.dno,
+    >    dname,loc
+    >  from  emp l join dept r
+    >  on (l.dno=r.dno);
+
+101     vino    26000   m       11      11      marketing hyd
+102     Sri     25000   f       11      11      marketing hyd
+104     lokitha 8000    f       12      12      hrdel
+101     janaki  10000   f       12      12      hrdel
+201     aaa     30000   m       12      12      hrdel
+103     mohan   13000   m       13      13      finance   hyd
+105     naga    6000    m       13      13      finance   hyd
+202     bbbb    50000   f       13      13      finance   hyd
+203     ccc     10000   f       13      13      finance   hyd
+204     ddddd   50000   m       13      13      finance   hyd
+Time taken: 14.11 seconds
+hive> 
+
+
+Left outer Join :
+
+
+hive> select id,name,sal,sex,l.dno,r.dno,
+    >    dname,loc                       
+    >  from  emp l left outer join dept r
+    >  on (l.dno=r.dno);                 
+
+
+
+101     vino    26000   m       11      11      marketing hyd
+102     Sri     25000   f       11      11      marketing hyd
+104     lokitha 8000    f       12      12      hrdel
+101     janaki  10000   f       12      12      hrdel
+201     aaa     30000   m       12      12      hrdel
+103     mohan   13000   m       13      13      finance   hyd
+105     naga    6000    m       13      13      finance   hyd
+202     bbbb    50000   f       13      13      finance   hyd
+203     ccc     10000   f       13      13      finance   hyd
+204     ddddd   50000   m       13      13      finance   hyd
+304     xxx     70000   m       14      NULL    NULL      NULL
+305     yyy     80000   f       15      NULL    NULL      NULL
+Time taken: 12.786 seconds
+hive> 
+
+
+Right outer Join:
+
+hive> select id,name,sal,sex,l.dno,r.dno,
+    >    dname,loc                       
+    >  from  emp l right outer join dept r
+    >  on (l.dno=r.dno);  
+
+101     vino    26000   m       11      11      marketing hyd
+102     Sri     25000   f       11      11      marketing hyd
+104     lokitha 8000    f       12      12      hrdel
+101     janaki  10000   f       12      12      hrdel
+201     aaa     30000   m       12      12      hrdel
+103     mohan   13000   m       13      13      finance   hyd
+105     naga    6000    m       13      13      finance   hyd
+202     bbbb    50000   f       13      13      finance   hyd
+203     ccc     10000   f       13      13      finance   hyd
+204     ddddd   50000   m       13      13      finance   hyd
+NULL    NULL    NULL    NULL    NULL    20      prod      hyd
+NULL    NULL    NULL    NULL    NULL    21      admin     chennai
+Time taken: 12.429 seconds
+hive> 
+
+Full outer Join;
+
+hive> select id,name,sal,sex,l.dno,r.dno, 
+    >    dname,loc                        
+    >  from  emp l full outer join dept r 
+    >  on (l.dno=r.dno);   
+
+   
+
+Denormalizing:
+
+hive> create table info(id int, name string, 
+    >   sal int, sex string , dname string, 
+    >   loc string);
+OK
+Time taken: 0.04 seconds
+hive> insert overwrite table info
+    >   select id, name, sal, sex, dname, loc
+    >  from emp l full outer join dept r
+    >  on (l.dno=r.dno);
+
+           
+
+hive> select * from info;
+OK
+101     vino    26000   m       marketing       hyd
+102     Sri     25000   f       marketing       hyd
+104     lokitha 8000    f       hr      del
+101     janaki  10000   f       hr      del
+201     aaa     30000   m       hr      del
+103     mohan   13000   m       finance hyd
+105     naga    6000    m       finance hyd
+202     bbbb    50000   f       finance hyd
+203     ccc     10000   f       finance hyd
+204     ddddd   50000   m       finance hyd
+304     xxx     70000   m       NULL    NULL
+305     yyy     80000   f       NULL    NULL
+NULL    NULL    NULL    NULL    prod    hyd
+NULL    NULL    NULL    NULL    admin   chennai
+Time taken: 0.071 seconds
+hive> 
+
+_________________
+
+Task:
+
+hive> create table projects(dno1 int, dno2 int,
+    >   sal int);
+OK
+Time taken: 0.072 seconds
+hive> insert overwrite table projects
+    >   select l.dno, r.dno, sal from 
+    >   emp l full outer join dept r 
+    >   on (l.dno=r.dno);
+
+hive> create table proj(stat string, sal int);
+hive> insert overwrite table proj
+    >  select 
+    > if(dno1 is not null and dno2 is not null,
+    > 'Working',
+    >  if(dno2 is null,'BenchTeam','BenchProj')),
+    >  sal from projects;
+
+hive> select * from proj;
+OK
+Working 26000
+Working 25000
+Working 8000
+Working 10000
+Working 30000
+Working 13000
+Working 6000
+Working 50000
+Working 10000
+Working 50000
+BenchTeam       70000
+BenchTeam       80000
+BenchProj       NULL
+BenchProj       NULL
+Time taken: 0.087 seconds
+hive> 
+
+hive> insert overwrite table proj
+    >  select stat, if(sal is null,0,sal)
+    >  from proj;
+
+
+hive> create table summary(stat string, 
+    >    totsal int, cnt int);
+OK
+Time taken: 0.042 seconds
+hive> insert overwrite table summary
+    >   select stat, sum(sal), count(*)
+    >  from proj
+    >    group by stat;
+
+hive> select * from summary;
+OK
+BenchProj       0       2
+BenchTeam       150000  2
+Working 228000  10
+
+
+___________________________
+
+[training@localhost ~]$ cat trans
+01/01/2010,30000
+01/07/2010,40000
+01/08/2010,30000
+01/26/2010,40000
+02/01/2010,30000
+02/07/2010,40000
+02/09/2010,30000
+02/28/2010,40000
+03/01/2010,80000
+03/07/2010,40000
+04/01/2010,30000
+04/17/2010,70000
+04/18/2010,80000
+04/26/2010,90000
+05/01/2010,10000
+05/07/2010,20000
+05/08/2010,30000
+05/26/2010,60000
+06/01/2010,30000
+06/17/2010,50000
+07/01/2010,30000
+07/07/2010,40000
+08/08/2010,10000
+08/26/2010,20000
+09/01/2010,90000
+09/07/2010,40000
+09/18/2010,30000
+09/30/2010,40000
+10/01/2010,30000
+10/07/2010,40000
+10/08/2010,30000
+11/26/2010,40000
+11/01/2010,30000
+12/07/2010,40000
+12/08/2010,30000
+12/26/2010,40000
+[training@localhost ~]$ 
+
+hive> create table rawsales(dt string, 
+    >  amt int)
+    row format delimited
+     fields terminated by ',';
+OK
+Time taken: 0.057 seconds
+hive> load data local inpath 'trans'
+    >  into table rawsales;
+Copying data from file:/home/training/trans
+Copying file: file:/home/training/trans
+Loading data to table joinsdb.rawsales
+OK
+Time taken: 0.514 seconds
+hive> 
+
+
+create table raw2(dt array<string> , amt int);
+
+insert overwrite table raw2
+  select split(dt,'/') , amt from rawsales;
+
+
+hive> select * from raw2 limit 3;
+OK
+["01","01","2010"]      30000
+["01","07","2010"]      40000
+["01","08","2010"]      30000
+Time taken: 0.061 seconds
+hive> insert overwrite table sales
+    >   select 
+    > concat(dt[2],'-',dt[0],'-',dt[1]), amt
+    >  from raw2;
+
+hive> create table sales2(mon int, amt int);
+OK
+Time taken: 0.044 seconds
+hive> insert overwrite table sales2
+    >   select month(dt), amt from sales;
+
+
+hive> create table rep1(mon int, tot int);
+OK
+Time taken: 0.034 seconds
+hive> insert overwrite table rep1
+    >   select mon, sum(amt) from sales2
+    >    group by mon;
+
+
+
+hive> create table carts(m1 int, m2 int, 
+    >   tot1 int, tot2 int);             
+OK
+Time taken: 0.044 seconds
+hive> insert overwrite table carts
+    >   select l.mon , r.mon , l.tot, r.tot
+    >  from rep1 l join rep1 r;
+
+
+hive> insert overwrite table carts
+    >  select * from carts
+    >    where (m1-m2)=1;
+
+hive> select * from carts;
+OK
+12      11      110000  70000
+7       6       70000   80000
+2       1       140000  140000
+8       7       30000   70000
+4       3       270000  120000
+9       8       200000  30000
+10      9       100000  200000
+5       4       120000  270000
+11      10      70000   100000
+3       2       120000  140000
+6       5       80000   120000
+
+
+hive> alter table carts add columns(per int);
+OK
+Time taken: 0.067 seconds
+hive> insert overwrite table carts
+    >   select m1,m2,tot1,tot2,
+    >     ((tot1-tot2)*100)/tot2 from carts;
+
+hive> select * from carts;
+OK
+12      11      110000  70000   57
+7       6       70000   80000   -12
+2       1       140000  140000  0
+8       7       30000   70000   -57
+4       3       270000  120000  125
+9       8       200000  30000   566
+10      9       100000  200000  -50
+5       4       120000  270000  -55
+11      10      70000   100000  -30
+3       2       120000  140000  -14
+6       5       80000   120000  -33
+Time taken: 0.061 seconds
+hive> 
