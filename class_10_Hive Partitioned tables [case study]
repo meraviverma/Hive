@@ -1,0 +1,127 @@
+[cloudera@quickstart ~]$ cat saleshistory
+01/01/2011,2000
+01/01/2011,3000
+01/02/2011,5000
+01/02/2011,4000
+01/02/2011,1000
+01/03/2011,2000
+01/25/2011,3000
+01/25/2011,5000
+01/29/2011,4000
+01/29/2011,1000
+02/01/2011,2000
+02/01/2011,3000
+02/02/2011,8000
+03/02/2011,9000
+03/02/2011,3000
+03/03/2011,5000
+03/25/2011,7000
+03/25/2011,2000
+04/29/2011,5000
+04/29/2011,3000
+05/01/2011,2000
+05/01/2011,3000
+05/02/2011,5000
+05/02/2011,4000
+06/02/2011,1000
+06/03/2011,2000
+06/25/2011,3000
+07/25/2011,5000
+07/29/2011,4000
+07/29/2011,1000
+08/01/2011,2000
+08/01/2011,3000
+08/02/2011,5000
+09/02/2011,4000
+09/02/2011,1000
+09/03/2011,2000
+09/25/2011,3000
+10/25/2011,5000
+10/29/2011,4000
+10/29/2011,1000
+10/29/2011,5000
+11/01/2011,2000
+11/01/2011,3000
+11/02/2011,5000
+11/02/2011,4000
+11/02/2011,1000
+11/03/2011,2000
+11/25/2011,3000
+12/25/2011,5000
+12/29/2011,4000
+12/29/2011,1000
+12/30/2011,9000
+12/30/2011,40000
+[cloudera@quickstart ~]$
+
+create table myraw(dt string, amt int)
+      row format delimited
+        fields terminated by ',';
+
+load data local inpath 'saleshistory' into table myraw;
+
+create table urraw like myraw;
+
+
+
+
+-----------------
+
+insert overwrite table urraw
+   select * from (
+      select dt, amt from myraw
+            union all
+   select concat(substr(dt,1,9),'2') as dt, amt+1000 as amt
+          from myraw
+            union all
+   select concat(substr(dt,1,9),'3') as dt, amt+4000 as amt
+          from myraw
+            union all
+   select concat(substr(dt,1,9),'4') as dt, amt+500 as amt
+          from myraw
+            union all
+   select concat(substr(dt,1,9),'5') as dt, amt+8000 as amt
+          from myraw
+            union all
+   select concat(substr(dt,1,9),'6') as dt, amt+1000 as amt
+          from myraw ) s;
+
+-- 01/01/2011     1000
+
+
+create table ourraw(dt array<string> , amt int);
+
+insert overwrite table ourraw
+  select split(dt,'/') , amt  from urraw;
+
+create table sales(dt string, amt int);
+
+insert overwrite table sales
+  select concat(dt[2],'-',dt[0],'-',dt[1]), amt from
+        ourraw;
+
+
+
+
+create table salespart(dt string, amt int)
+   partitioned by (y int, m int, d int)
+ row format delimited
+   fields terminated by ',';
+
+set hive.exec.dynamic.partition=true;
+set hive.exec.dynamic.partition.mode=nonstrict;
+set hive.exec.max.dynamic.partitions=100000;
+set hive.exec.max.dynamic.partitions.pernode=10000;
+
+
+
+
+
+
+insert overwrite table salespart
+   partition (y, m, d)
+  select dt, amt, year(dt), month(dt), day(dt)
+        from sales;
+
+     ------    sankara.deva2016@gmail.com
+   -----sub:   partitions case study.
