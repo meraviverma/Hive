@@ -1,0 +1,180 @@
+Hive Lab 13 : Eliminating Duplicates and Unions (merging)
+
+[training@localhost ~]$ cat dupes
+101,aaa,10000
+101,bbb,20000
+101,aaa,10000
+101,aaa,10000
+101,aaa,10000
+102,bbb,40000
+103,cccc,50000
+102,bbb,40000
+102,bbb,40000
+[training@localhost ~]$ 
+
+hive> create database hdp;
+OK
+Time taken: 1.702 seconds
+hive> use hdp;
+OK
+Time taken: 0.018 seconds
+hive> create table info(id int, name string, 
+    >   sal int)
+    >  row format delimited fields terminated 
+    >  by ',';
+OK
+Time taken: 0.439 seconds
+hive> 
+
+hive> load data local inpath 'dupes'
+    >  into table info;
+Copying data from file:/home/training/dupes
+Copying file: file:/home/training/dupes
+Loading data to table hdp.info
+OK
+Time taken: 0.209 seconds
+hive> select * from info;
+OK
+101     aaa     10000
+101     bbb     20000
+101     aaa     10000
+101     aaa     10000
+101     aaa     10000
+102     bbb     40000
+103     cccc    50000
+102     bbb     40000
+102     bbb     40000
+Time taken: 0.201 seconds
+hive> 
+hive> select distinct(id),name,sal
+    >   from info;
+
+
+101     aaa     10000
+101     bbb     20000
+102     bbb     40000
+103     cccc    50000
+
+way2)
+hive> select id,name,sal           
+    >   from info           
+    >  group by id,name,sal;
+
+101     aaa     10000
+101     bbb     20000
+102     bbb     40000
+103     cccc    50000
+
+Way3)
+ if table has so many columns
+
+ hive> create table dummy(line string);
+ hive> load data inpath
+  '/user/hive/warehouse/hdp.db/info/dupes'
+  into table dummy;
+ hive> insert overwrite table dummy
+    select line from dummy group by line;
+
+ hive> load data inpath
+  '/user/hive/warehouse/hdp.db/dummy/000000_0'
+  into table info;
+
+  hive> drop table dummy;
+
+________________________________________
+
+ hive> select * from emp;
+OK
+101     vino    26000   m       11
+102     Sri     25000   f       11
+103     mohan   13000   m       13
+104     lokitha 8000    f       12
+105     naga    6000    m       13
+101     janaki  10000   f       12
+201     aaa     30000   m       12
+202     bbbb    50000   f       13
+203     ccc     10000   f       13
+204     ddddd   50000   m       13
+304     xxx     70000   m       14
+305     yyy     80000   f       15
+Time taken: 0.053 seconds
+hive> 
+
+
+hive> create table todayemp(id int, name string, 
+    >  sal int, sex string, dno int) 
+    > row format delimited
+    >   fields terminated by ',';
+OK
+Time taken: 0.031 seconds
+hive> load data local inpath 'emp2'
+    >  into table todayemp;
+Copying data from file:/home/training/emp2
+Copying file: file:/home/training/emp2
+Loading data to table hdp.todayemp
+OK
+Time taken: 0.095 seconds
+hive> select * from todayemp;
+OK
+401     aaa     50000   m       11
+402     bbbbbb  60000   f       12
+403     cc      90000   m       11
+Time taken: 0.051 seconds
+hive> 
+
+
+appending  one table data another table data.
+
+
+way1)
+  insert overwrite table emp
+    select * from (
+      select * from emp
+            union all
+      select * from todayemp) e;
+
+
+ -- if first table has 1lakh and 2nd has 10 rows, just to 10 rows, hive is scanning 1lakh+10 rows.  [ bad ]
+
+ way2).
+
+  if delimiters of both tables is same.
+
+
+  hadoop fs -cp /user/hive/warehouse/hdp.db/todayemp/emp2   /user/hive/warehouse/hdp.db/emp
+   
+_______________________________________
+
+
+
+
+ union all:
+
+    if table schema is different.
+
+
+  tab1 --> id name  sal   sex dno
+ tab2  ---> id name dno sex sal
+
+  select * from (
+      select id, name,sal,sex,dno from tab1
+           union all
+   select id, name,sal,sex,dno from tab2 ) t;
+
+
+________________
+
+ if tables have different columns.
+
+ tab1 --> id, name,  sal, sex , dno , desig
+
+ tab2 --> id, name, income, gender, city
+
+
+
+  select * from (
+    select id, name, sal, sex, dno, desig, 'neevuru' as city from  tab1
+           union all
+ select id,name,income as sal, gender as sex,
+   0 as dno , 'nopani' as desig, city 
+    from tab2 ) t;
