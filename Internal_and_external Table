@@ -1,0 +1,195 @@
+Hive Lab1 : Inner tables and External Tables
+hive> show databases;
+
+-- lists existed databases;
+
+hive> create table mysamp(line string);
+OK
+Time taken: 0.543 seconds
+
+hive> load data local inpath 'file1'             
+    > into table mysamp;
+
+[training@localhost ~]$ hadoop fs -ls /user/hive/warehouse/mysamp
+Found 1 items
+-rw-r--r--   1 training supergroup         50 2016-06-15 07:21 /user/hive/warehouse/mysamp/file1
+
+when ever a table is created under default database, in hdfs one directory will created with table name.
+
+ when you load a file into table,
+ the file will be copied into backend table's directory.
+
+ location of default database:
+  /user/hive/warehouse 
+
+hive> select * from mysamp;
+OK
+aaaaaaaaaaa
+aaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaa
+Time taken: 0.166 seconds
+hive> 
+
+when select statement is submitted hive starts reading from table's backend directory(all files of directory).
+
+[training@localhost ~]$ cat > file2
+bbbbbbbbbbbbbbbb
+bbbbbbbbbbbbbbbbbbb
+bbbbbbbbbbbbbbbbb
+
+hive> load data local inpath 'file2'
+    >  into table mysamp;
+
+
+[training@localhost ~]$ hadoop fs -ls /user/hive/warehouse/mysamp
+Found 2 items
+-rw-r--r--   1 training supergroup         50 2016-06-15 07:21 /user/hive/warehouse/mysamp/file1
+-rw-r--r--   1 training supergroup         55 2016-06-15 07:28 /user/hive/warehouse/mysamp/file2
+[training@localhost ~]$ 
+
+hive> select * from mysamp;
+OK
+aaaaaaaaaaa
+aaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaa
+bbbbbbbbbbbbbbbb
+bbbbbbbbbbbbbbbbbbb
+bbbbbbbbbbbbbbbbb
+Time taken: 0.065 seconds
+hive> 
+
+-- here, hive reading from all files of backend directory.
+
+[training@localhost ~]$ hadoop fs -ls /user/hive/warehouse/mysamp
+ls: Cannot access /user/hive/warehouse/mysamp: No such file or directory.
+
+-- as above operation, 
+  when table is dropped, 
+    in hdfs, the backend directory will also be deleted.
+
+--- means, metadata and data both are dropped.
+  this is behavior of "inner table" 
+
+two types of tables.
+____________________
+ i) inner table. (default)
+  --if table is dropped, both metadata and data will be deleted 
+  from hive table will be deleted.
+  from hdfs, backend directory will be deleted.
+
+ ii) external table.
+  -- if table is dropped, only metadata will be deleted.
+
+   from hive table only will be deleted. but still backend directory is available with data files.
+
+  so that we can re use.
+creating external table:
+
+
+hive> create external table ursamp(line  string);
+
+hive> load data local inpath 'file1' 
+    >  into table ursamp;
+
+hive> load data local inpath 'file2'
+    >  into table ursamp;
+
+hive> 
+
+[training@localhost ~]$ hadoop  fs -ls /user/hive/warehouse/ursamp
+Found 2 items
+-rw-r--r--   1 training supergroup         50 2016-06-15 07:40 /user/hive/warehouse/ursamp/file1
+-rw-r--r--   1 training supergroup         55 2016-06-15 07:40 /user/hive/warehouse/ursamp/file2
+[training@localhost ~]$ 
+
+hive> select * from ursamp;
+OK
+aaaaaaaaaaa
+aaaaaaaaaaaaaaaa
+aaaaaaaaaaaaaaaaaaaa
+bbbbbbbbbbbbbbbb
+bbbbbbbbbbbbbbbbbbb
+bbbbbbbbbbbbbbbbb
+Time taken: 0.081 seconds
+hive> 
+
+hive> drop table ursamp;
+
+
+[training@localhost ~]$ hadoop  fs -ls /user/hive/warehouse/ursamp
+Found 2 items
+-rw-r--r--   1 training supergroup         50 2016-06-15 07:40 /user/hive/warehouse/ursamp/file1
+-rw-r--r--   1 training supergroup         55 2016-06-15 07:40 /user/hive/warehouse/ursamp/file2
+[training@localhost ~]$ 
+
+
+from hive ursamp is deleted,
+  but still ursamp directory with data files safely available in warehouse location.
+
+adv of exteral table reuse of the data.
+
+___________________________________
+
+how to reuse.?
+
+hive> create table ursamp(line string);
+
+-- create behavior,
+
+   if table's directory (ursamp) is already available , it will use it.
+ if not available, it will create directory.
+
+_____________________________
+
+creating databases.
+
+hive> create database mydb;
+OK
+Time taken: 0.029 seconds
+hive> use mydb;                       
+OK
+Time taken: 0.013 seconds
+hive> create table urtab(line string);
+OK
+Time taken: 0.04 seconds
+hive> 
+
+[training@localhost ~]$ hadoop fs -ls /user/hive/warehouse/mydb.db
+Found 1 items
+drwxr-xr-x   - training supergroup          0 2016-06-15 07:56 /user/hive/warehouse/mydb.db/urtab
+[training@localhost ~]$ 
+
+in hdfs, under warehouse location with name database and with .db extension one directory will be created.
+
+    mydb.db
+
+ hive> load data local inpath 'file1' 
+    >   into table urtab;
+
+[training@localhost ~]$ hadoop fs -ls /user/hive/warehouse/mydb.db/urtab
+Found 1 items
+-rw-r--r--   1 training supergroup         50 2016-06-15 07:59 /user/hive/warehouse/mydb.db/urtab/file1
+
+________________________________
+
+create table's directory under custom location.
+
+hive> create table mytab(line string) 
+    >  location '/user/myloc';
+OK
+Time taken: 0.034 seconds
+hive> load data local inpath 'file1' into table mytab;
+Copying data from file:/home/training/file1
+Copying file: file:/home/training/file1
+Loading data to table default.mytab
+OK
+Time taken: 0.131 seconds
+hive> 
+
+[training@localhost ~]$ hadoop fs -ls /user/myloc
+Found 1 items
+-rw-r--r--   1 training supergroup         50 2016-06-15 08:02 /user/myloc/file1
+[training@localhost ~]$ 
+
+
+--- with name /user/myloc one directory is created for mytab table.
