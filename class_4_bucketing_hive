@@ -1,0 +1,44 @@
+Hive Lab4 : Bucketing Tables
+hive> create database bucks;
+OK
+Time taken: 1.775 seconds
+hive> use bucks;
+OK
+Time taken: 0.022 seconds
+hive> create table sales(pid string, pr int)
+    > row format delimited  
+    >   fields terminated by ',';
+OK
+Time taken: 0.364 seconds
+hive> load data local inpath 'sales' 
+    >   into table sales;
+Copying data from file:/home/training/sales
+Copying file: file:/home/training/sales
+Loading data to table bucks.sales
+OK
+Time taken: 0.187 seconds
+hive> 
+
+hive> create table buckstab(pid string, 
+    >   pr int)
+    >  clustered by (pid)
+    > into 3 buckets;
+OK
+Time taken: 0.051 seconds
+hive> 
+
+loading data into buckets.
+
+hive> set hive.enforce.bucketing=true;
+hive> insert overwrite table buckstab
+    >   select * from sales;
+
+[training@localhost ~]$ hadoop fs -ls /user/hive/warehouse/bucks.db/sales
+Found 1 items
+-rw-r--r--   1 training supergroup        185 2016-06-21 07:35 /user/hive/warehouse/bucks.db/sales/sales
+[training@localhost ~]$ hadoop fs -ls /user/hive/warehouse/bucks.db/buckstab
+Found 3 items
+-rw-r--r--   1 training supergroup         62 2016-06-21 07:40 /user/hive/warehouse/bucks.db/buckstab/000000_0
+-rw-r--r--   1 training supergroup         35 2016-06-21 07:40 /user/hive/warehouse/bucks.db/buckstab/000001_0
+-rw-r--r--   1 training supergroup         88 2016-06-21 07:40 /user/hive/warehouse/bucks.db/buckstab/000002_0
+[training@localhost ~]$ 
