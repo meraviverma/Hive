@@ -1,0 +1,519 @@
+Static Partition.
+-----------------------------
+We apply static partition when we know data (supposed to be inserted) belongs to which partition.
+> In static partition every partitioning needs to be backed with the individual hive statement 
+Which is not feasible for large no of partition.
+> We need to use set hive.mapred.mode=strict. This property is default in hive-site.xml
+
+create table student (name String,dept String)
+row format delimited
+fields terminited by ','
+
+load data local inpath '/home/hadoop/Desktop/hadoopdata/student' into table student.
+When we load data hive doesn’t look at anything it just puts data into the warehouse.
+
+create table student(name string , rollno int,per float)
+partitioned by (state string,city string)
+row format delimited
+fields terminited by ',';
+
+load data local inpath '/home/hadoop/Desktop/hadoopdata/partsstudmah' into table student
+partition(state="maharashtra",city="aurangabad")
+
+
+
+cat > /tmp/emp.txt
+101,Kyle,Admin,50000,A
+102,Xander,Admin,50000,B
+103,Jerome,Sales,60000,A
+104,Upton,Admin,50000,C
+105,Ferris,Admin,50000,C
+106,Stewart,Tech,12000,A
+107,Chase,Tech,12000,B
+108,Malik,Engineer,45000,B
+109,Samson,Admin,50000,A
+110,Quinlan,Manager,40000,A
+111,Joseph,Manager,40000,B
+112,Axel,Sales,60000,B
+113,Robert,Manager,40000,A
+114,Cairo,Engineer,45000,A
+115,Gavin,Ceo,100000,D
+116,Vaughan,Manager,40000,B
+117,Drew,Engineer,45000,D
+118,Quinlan,Admin,50000,B
+119,Gabriel,Engineer,45000,A
+120,Palmer,Ceo,100000,A
+
+We are going to partition this dataset into 3 Departments A,B,C
+
+Create a non partitioned table to store the data (Staging table)
+
+create external table emp_stage (
+empid int,
+name string,
+designation  string,
+Salary int,
+department string) 
+row format delimited 
+fields terminated by "," 
+location '/tmp/emp_stage_data';
+
+load data local inpath '/tmp/emp.txt' into table emp_stage;
+
+Create Partitioned hive table
+
+create  table emp_part (
+empid int,
+name string,
+designation  string,
+salary int) 
+PARTITIONED BY (department String) 
+row format delimited fields terminated by ","; 
+
+
+INSERT INTO TABLE emp_part PARTITION(department='A') 
+SELECT empid, name,designation,salary FROM emp_stage WHERE department='A'; 
+
+INSERT INTO TABLE emp_part PARTITION (department='B') 
+SELECT empid, name,designation,salary FROM emp_stage WHERE department='B'; 
+
+INSERT INTO TABLE emp_part PARTITION (department='C') 
+SELECT empid, name,designation,salary FROM emp_stage WHERE department='C';
+
+INSERT INTO TABLE emp_part PARTITION (department='D') 
+SELECT empid, name,designation,salary FROM emp_stage WHERE department='D';
+If we go for the above approach , if we have 50 partitions we need to do the insert statement 50 times. That is a tedeous task and it is known as Static Partition.
+
+Dynamic Partition 
+-------------------------
+
+Takes more time.
+Approach:
+1) Create non-partition table t2 and insert data into it.
+2) Now create a table t1 partitioned on intended column (say country)
+3) Now load data in t1 from t2 as below:
+Insert into table t1 partition (state,city) select * from t2.
+When we fire select query it matches with schema.
+describe extended tablename;
+use default.
+localhost:50070
+Limitations:
+Having large number of partitions create number of files/ directories in HDFS, which creates overhead for NameNode as it maintains metadata.
+It may optimize certain queries based on where clause, but may cause slow response for queries based on grouping clause.
+CREATE TABLE partitioned_transaction (cust_id INT, amount FLOAT, country STRING) PARTITIONED BY (month STRING) ROW FORMAT DELIMITED FIELDS TERMINATED BY ‘,’ ; 
+SET hive.exec.dynamic.partition = true;
+SET hive.exec.dynamic.partition.mode = nonstrict;
+INSERT OVERWRITE TABLE partitioned_transaction PARTITION (month) SELECT cust_id, amount, country, month FROM transaction_details;
+
+Set hive.exec.dynamic.partition=true;
+Set hive.exec.dynamic.partition.mode=nonstrict;
+Set hive.exec.max.dynamic.partitions=1000;
+Set hive.exec.max.dynamic.partitions.pernode=1000;
+
+
+Dynamic Partition – Single insert to partition table Inorder to achieve the same we need to set 4 things,
+
+set hive.exec.dynamic.partition=true
+
+set hive.exec.dynamic.partition.mode=nonstrict We are using the dynamic partition without a static partition (A table can be partitioned based
+on multiple columns in hive) in such case we have to
+enable the non strict mode. In strict mode we can use
+dynamic partition only with a Static Partition.
+
+set hive.exec.max.dynamic.partitions.pernode=4 The default value is 2000(HDP-2.5), we have to modify the
+same according to the possible no of partitions
+
+set hive.exec.max.created.files=100000 The default values is 100000 but for larger tables
+it can exceed the default, so we may have to update the same.
+
+    create  table emp_part_dy (
+    empid int,
+    name string,
+    designation  string,
+    salary int) 
+    PARTITIONED BY (department String) 
+    row format delimited fields terminated by ","; 
+
+    INSERT OVERWRITE TABLE emp_part_dy PARTITION(department) SELECT empid, name,designation,salary,department FROM emp_stage;
+	
+--verify from the data gets pulled up
+
+hive>  select INPUT__FILE__NAME,empid from default.emp_part_dy where department='D';
+
+see the difference between the query plans
+
+explain select * from default.emp_part_dy where department='D';
+OK
+Plan not optimized by CBO.
+
+Stage-0
+   Fetch Operator
+      limit:-1
+      Select Operator [SEL_2]
+         outputColumnNames:["_col0","_col1","_col2","_col3","_col4"]
+         TableScan [TS_0]
+            alias:emp_part_dy
+
+Time taken: 0.2 seconds, Fetched: 10 row(s)
+explain on non partitioned table
+
+explain  select empid from default.emp_stage where department='D';
+OK
+Plan not optimized by CBO.
+
+Stage-0
+   Fetch Operator
+      limit:-1
+      Select Operator [SEL_2]
+         outputColumnNames:["_col0"]
+         Filter Operator [FIL_4]
+            predicate:(department = 'D') (type: boolean)
+            TableScan [TS_0]
+               alias:emp_stage
+
+Time taken: 0.083 seconds, Fetched: 12 row(s)
+
+Partitioning works at split generation
+Predicate pushdown is applied during file reads
+many partitions can result into performance degradation
+partition on managed vs external table
+
+Partition on managed Data in HDFS
+
+Data are filtered and seperated to different folders in HDFS
+
+on external tables
+
+Create table with partition
+create external table emp_par_ex (
+empid int,
+name string,
+designation string,
+salary Int) 
+PARTITIONED BY (department string) 
+row format delimited fields terminated by "," ;
+
+Load data into emp_par_ex table using ALTER statement 
+ALTER TABLE emp_par_ex ADD PARTITION (Department='A') location '/tmp/emp_par_ex/A';
+ALTER TABLE emp_par_ex ADD PARTITION (Department='B') location '/tmp/emp_par_ex/B';
+
+ALTER TABLE emp_par_ex ADD PARTITION (Department='C') location '/tmp/emp_par_ex/C';
+```
+#### common problems with dynamic partitioning
+* lots of reducer but only few are doing real work
+* simple query are running very slow
+  ```
+  SELECT COUNT(*) FROM test_table WHERE col = 'value';
+  
+  due to many number  of partitions
+  due to many number of files per partition
+  The size of each files under each partition compared with block size
+  
+  Resolution
+  take advantage of like table and insert the data into new table from the original table
+  ```
+
+### Bucketing
+-------------------------------------
+Hive partition divides table into number of partitions and these partitions can be further subdivided into more manageable parts known as Buckets or Clusters.
+Records which are bucketed by the same column will always be saved in the same bucket.
+CLUSTERED BY clause is used to divide the table into buckets.
+In Hive Partition, each partition will be created as directory. But in Hive Buckets, each bucket will be created as file.
+
+Bucketing can also be done even without partitioning on Hive tables.
+
+set hive.exec.dynamic.partition=true;
+set hive.exec.dynamic.partition.mode=nonstrict;
+set hive.exec.max.dynamic.partitions=2000;
+set hive.exec.max.dynamic.partitions.pernode=2000;
+set hive.enforce.bucketing=true;
+
+Create table bucket_table (street string,zip int,state string) partition by (city string) cluster by (street)
+into 4 bucket row format delimited fields terminated by ',' ;
+
+
+
+
+How does Hive distribute the rows across the buckets? 
+In general, the bucket number is determined by the expression hash_function(bucketing_column) mod num_buckets. (There's a '0x7FFFFFFF in there too, but that's not that important). The hash_function depends on the type of the bucketing column. For an int, it's easy, hash_int(i) == i. For example, if user_id were an int, and there were 10 buckets, we would expect all user_id's that end in 0 to be in bucket 1, all user_id's that end in a 1 to be in bucket 2, etc. For other datatypes, it's a little tricky. In particular, the hash of a BIGINT is not the same as the BIGINT. And the hash of a string or a complex datatype will be some number that's derived from the value, but not anything humanly-recognizable. For example, if user_id were a STRING, then the user_id's in bucket 1 would probably not end in 0. In general, distributing rows based on the hash will give you a even distribution in the buckets
+```
+cat > /tmp/census.csv
+100,Oscar,Londerzeel,ac.tellus.Suspendisse@loremut.org
+101,Jameson,Loverval,Cras.dolor@magnaUt.net
+102,Damon,Morinville,Sed.neque.Sed@urna.co.uk
+103,Chancellor,Blairgowrie,ante.dictum.mi@nonummyultricies.net
+104,Kenyon,Shimla,posuere.at.velit@pedenec.net
+105,Caldwell,Gianico,libero.Proin@semPellentesque.com
+106,Levi,Troyes,augue@elit.net
+107,Yasir,Langford,est.mauris.rhoncus@turpisIn.edu
+108,Upton,Aartrijke,mi.tempor.lorem@nuncid.net
+109,Nicholas,Placilla,cursus@primisin.edu
+110,Emerson,Minervino di Lecce,molestie@acturpis.net
+111,Reese,Juseret,lacinia@risusNunc.co.uk
+112,Giacomo,Lampernisse,In.nec.orci@vitaesodales.edu
+113,Mohammad,Sandviken,egestas.ligula.Nullam@rutrum.co.uk
+114,Fulton,Lawton,tristique.neque@utaliquamiaculis.edu
+115,Barry,Kitchener,Fusce@ametrisusDonec.org
+116,Valentine,Nandyal,nonummy.ut.molestie@nasceturridiculusmus.ca
+117,Lawrence,Hachy,eget.venenatis.a@Aliquamnisl.com
+118,Micah,Wolfsberg,ultricies.ornare@ultriciesornareelit.org
+119,Chandler,Lago Verde,primis.in.faucibus@seddui.org
+120,Myles,Abolens,et@mollis.ca
+121,Len,Souvret,vitae.posuere.at@rhoncus.com
+122,Blaze,Brunn am Gebirge,pede.Cras@imperdietullamcorper.net
+123,Rafael,Hofstade,eget.laoreet@tellus.ca
+124,Ahmed,St. Clears,Phasellus@aceleifendvitae.co.uk
+125,Deacon,Ramskapelle,Ut.tincidunt@egetipsumDonec.net
+126,Steel,Newbury,amet.risus@Nullamscelerisque.ca
+127,Isaac,Brixton,non.enim.Mauris@gravidaPraesenteu.ca
+128,Andrew,Smithers,massa.Mauris@tortor.ca
+129,Cullen,Lerum,cubilia.Curae.Donec@acfacilisis.ca
+130,Lucian,Oudenburg,Ut.semper.pretium@anteiaculis.edu
+131,Kevin,Flin Flon,non@elementumlorem.ca
+132,Abbot,Hulshout,Nunc.lectus@Maurisnon.net
+133,Hammett,Torrevecchia Teatina,Nullam@quis.edu
+134,Troy,Alençon,amet.ornare.lectus@dictumplacerat.org
+135,Chase,Poole,ac.sem@consequat.co.uk
+136,Bruce,Forgaria nel Friuli,pulvinar.arcu.et@disparturient.com
+137,Ali,Kozhikode,semper@felisadipiscing.net
+138,Avram,Springdale,risus@vestibulumneceuismod.com
+139,Kadeem,Kalyan,orci@acsem.org
+140,Abel,Molfetta,aliquet@egestasrhoncus.net
+141,Beau,Oppido Mamertina,Class.aptent.taciti@nec.net
+142,Hakeem,Beerse,sit@lorem.edu
+143,Berk,Tirúa,ad.litora.torquent@enim.com
+144,Jakeem,Beaumaris,arcu.Sed.et@lectus.ca
+145,Rudyard,Częstochowa,Aliquam.erat@dignissimmagna.edu
+146,Oscar,Koekelberg,at.velit@taciti.ca
+147,Clarke,Basildon,mollis@eget.co.uk
+148,Linus,Gateshead,et@facilisisSuspendisse.net
+149,Christian,Baracaldo,non.sollicitudin.a@semperrutrumFusce.org
+150,Ferris,Birmingham,penatibus@facilisisvitaeorci.edu
+151,Ray,Langley,eu.tellus.Phasellus@Donec.com
+152,Jason,Naperville,Vivamus.sit@diam.net
+153,Cain,Dieppe,Vivamus.molestie.dapibus@Naminterdumenim.ca
+154,Vance,Iqaluit,condimentum.Donec.at@Namac.edu
+155,Daniel,Sambreville,dictum.eu@Innecorci.co.uk
+156,John,Vänersborg,sodales@Quisquefringillaeuismod.net
+157,Colton,Rostock,quis.tristique.ac@acurna.edu
+158,Kamal,Ternat,eleifend@mitemporlorem.edu
+159,Kadeem,Sparwood,non.sollicitudin@dapibusid.edu
+160,Keefe,Rocca Santo Stefano,risus.In.mi@eget.edu
+161,Tate,Mango,arcu@vulputatelacus.org
+162,Zachery,Pointe-Claire,nibh.sit@auctor.org
+163,Kelly,Versailles,justo@a.net
+164,Oscar,Lille,rutrum@congueelit.com
+165,Castor,Cametá,et@sapiengravidanon.ca
+166,Rashad,Logroño,non@Nullaaliquet.co.uk
+167,Merritt,Marchihue,Cum.sociis@enimnonnisi.com
+168,Isaac,Steyr,non.lobortis@a.ca
+169,Matthew,Tewkesbury,Sed.eu.nibh@ut.co.uk
+170,Tiger,Kawerau,tortor.dictum@ultrices.edu
+171,Harrison,Oderzo,Duis@pede.org
+172,Zahir,Pali,in.tempus@sociis.edu
+173,Alden,Castelnovo del Friuli,facilisis.non@feugiatnon.ca
+174,Chadwick,Sialkot,malesuada.id@luctus.ca
+175,Kevin,Gibsons,orci.luctus.et@urnaNunc.com
+176,Leo,Offida,eleifend.nunc.risus@auctor.net
+177,Cameron,Oudegem,Praesent@ategestas.org
+178,Carlos,São Luís,Class@iaculisodio.co.uk
+179,Kieran,Manchester,luctus.lobortis@semmolestie.co.uk
+180,Acton,Calgary,sit@sempertellus.com
+181,Aladdin,Aylmer,lacinia.at.iaculis@anteMaecenasmi.ca
+182,Barry,Tampa,mauris@semvitae.org
+183,Gregory,Coaldale,dictum.eu.placerat@Phasellus.ca
+184,Dean,Couthuin,porttitor@risusDonec.org
+185,Castor,Pathankot,non@faucibusleoin.org
+186,Yuli,Jemeppe-sur-Sambre,at.velit@velarcueu.org
+187,Rooney,Cerreto di Spoleto,sollicitudin.orci.sem@pede.org
+188,Uriel,Marchienne-au-Pont,Cras.eu.tellus@sociisnatoquepenatibus.net
+189,Theodore,Villa Cortese,Aliquam.erat@magnaPhasellusdolor.org
+190,Callum,Clearwater Municipal District,sociosqu.ad@milorem.edu
+191,Gabriel,Fort Good Hope,aliquet@sit.org
+192,Berk,Filacciano,dui.Fusce@velmauris.edu
+193,Noah,Lebu,magna.tellus@pede.net
+194,Cruz,Stirling,elit@facilisis.co.uk
+195,Hakeem,Pelarco,Aenean.euismod.mauris@pedesagittis.net
+196,Devin,Castlegar,Cras.eu.tellus@Curabitur.edu
+197,Cedric,Montleban,Morbi.metus.Vivamus@congueturpis.co.uk
+198,Adrian,Swan Hills,lacus.Cras@nibhsit.org
+199,Lars,Buguma,gravida.non.sollicitudin@Maecenasmi.com
+```
+--create table backed by csv text file
+```
+create table census(
+ssn int,
+name string,
+city string,
+email string) 
+row format delimited 
+fields terminated by ',';
+
+load data local inpath '/tmp/census.csv' into table census;
+```
+--create bucketed table
+```
+create table census_clus(
+ssn int,
+name string,
+city string,
+email string) 
+clustered by (ssn) into 8 buckets;
+```
+---insert data in bucketed table from census table
+```
+set hive.enforce.bucketing=true
+
+insert overwrite  table census_clus select *  from census;
+```
+-- now check on hdfs table directory
+```
+ hadoop fs -ls /apps/hive/warehouse/census_clus
+
+ will see 8 part file on hdfs
+ Found 8 items
+-rwxrwxrwx   3 hive hdfs        542 2016-09-11 04:41 /apps/hive/warehouse/census_clus/000000_0
+-rwxrwxrwx   3 hive hdfs        576 2016-09-11 04:41 /apps/hive/warehouse/census_clus/000001_0
+-rwxrwxrwx   3 hive hdfs        571 2016-09-11 04:41 /apps/hive/warehouse/census_clus/000002_0
+-rwxrwxrwx   3 hive hdfs        543 2016-09-11 04:41 /apps/hive/warehouse/census_clus/000003_0
+-rwxrwxrwx   3 hive hdfs        649 2016-09-11 04:41 /apps/hive/warehouse/census_clus/000004_0
+-rwxrwxrwx   3 hive hdfs        691 2016-09-11 04:41 /apps/hive/warehouse/census_clus/000005_0
+-rwxrwxrwx   3 hive hdfs        630 2016-09-11 04:41 /apps/hive/warehouse/census_clus/000006_0
+-rwxrwxrwx   3 hive hdfs        641 2016-09-11 04:41 /apps/hive/warehouse/census_clus/000007_0
+```
+### Joins
+
+#### shuffle or common join or reducer join
+```
+set hive.auto.convert.join;
+explain select s.* from sample_07 s,sample_08 ss where s.code=ss.code;
+```
+
+#### Map Join or Broadcast join
+```
+set hive.auto.convert.join=true;
+hive.auto.convert.join.noconditionaltask=true
+hive.auto.convert.join.noconditionaltask.size=286331153
+
+explain select s.* from sample_07 s,sample_08 ss where s.code=ss.code;
+notice difference
+Map 2 <- Map 1 (BROADCAST_EDGE)
+Map Join Operator [MAPJOIN_15]
+```
+#### Bucket Map Join
+```
+--join is done in a Mapper only
+--Mapper processing bucket 1 from table A will fetch bucket 1 from table B
+--Spawn mapper based on big table
+--only matching buckets of all small tables are replicated onto each mapper
+-- the table should be bucketed on same join column and The number of buckets in one table is a multiple of the number of buckets in the other table.
+
+--tables: 
+census_clus with 8 buckets
+census_clus_4 with 4 buckets
+
+CREATE TABLE `census_clus_4`(
+  `ssn` int, 
+  `name` string, 
+  `city` string, 
+  `email` string)
+CLUSTERED BY ( 
+  ssn) 
+INTO 4 BUCKETS 
+
+insert into table census_clus_4 select * from census;
+
+set hive.optimize.bucketmapjoin=true;
+explain select c4.* from census_clus_4 c4,census_clus c where c4.ssn=c.ssn;
+```
+#### Sort Merge Bucket Map Join
+When all tables are:
+Large.
+Bucketed using the join columns.
+Sorted using the join columns.
+All tables have the same number of buckets.
+
+```
+CREATE TABLE `census_clus_smb1`(
+  `ssn` int, 
+  `name` string, 
+  `city` string, 
+  `email` string)
+CLUSTERED BY (ssn)
+SORTED BY (ssn) 
+INTO 4 BUCKETS 
+
+CREATE TABLE `census_clus_smb2`(
+  `ssn` int, 
+  `name` string, 
+  `city` string, 
+  `email` string)
+CLUSTERED BY (ssn)
+SORTED BY (ssn) 
+INTO 4 BUCKETS 
+
+insert into table census_clus_smb1 select * from census;
+insert into table census_clus_smb2 select * from census;
+
+set hive.auto.convert.sortmerge.join=true;
+set hive.optimize.bucketmapjoin = true;
+set hive.optimize.bucketmapjoin.sortedmerge = true;
+
+explain select c1.* from census_clus_smb1 c1,census_clus_smb2 c2 where c1.ssn=c2.ssn;
+```
+on MR
+```
+set hive.enforce.sortmergebucketmapjoin=false;
+explain select c1.* from census_clus_smb1 c1,census_clus_smb2 c2 where c1.ssn=c2.ssn;
+notice Sorted Merge Bucket Map Join Operator
+```
+#### Skew Join
+* One table has huge skew values on the joining column.
+* enable skew join.
+  * set hive.optimize.skewjoin=true.
+  * specified number of rows with the same key in join operator, assuming key as a skew join key.
+  * set hive.skewjoin.key=100000.
+ 
+  ### Locks
+```
+create table test(code int);
+
+show locks techfunding;
++----------+-----------+--------+------------+-------------+-------------+------------+-----------------+-----------------+--------------+-------+-----------+-------------+--+
+|  lockid  | database  | table  | partition  | lock_state  | blocked_by  | lock_type  | transaction_id  | last_heartbeat  | acquired_at  | user  | hostname  | agent_info  |
++----------+-----------+--------+------------+-------------+-------------+------------+-----------------+-----------------+--------------+-------+-----------+-------------+--+
+| Lock ID  | Database  | Table  | Partition  | State       | Blocked By  | Type       | Transaction ID  | Last Hearbeat   | Acquired At  | User  | Hostname  | Agent Info  |
++----------+-----------+--------+------------+-------------+-------------+------------+-----------------+-----------------+--------------+-------+-----------+-------------+--+
+
+
+select count(*) from techfunding;
+
+show locks techfunding;
++----------+-----------+--------------+------------+-------------+---------------+--------------+-----------------+-----------------+----------------+-------+-----------+-----------------------------------------------------------+--+
+|  lockid  | database  |    table     | partition  | lock_state  |  blocked_by   |  lock_type   | transaction_id  | last_heartbeat  |  acquired_at   | user  | hostname  |                        agent_info                         |
++----------+-----------+--------------+------------+-------------+---------------+--------------+-----------------+-----------------+----------------+-------+-----------+-----------------------------------------------------------+--+
+| Lock ID  | Database  | Table        | Partition  | State       | Blocked By    | Type         | Transaction ID  | Last Hearbeat   | Acquired At    | User  | Hostname  | Agent Info                                                |
+| 145.1    | default   | techfunding  | NULL       | ACQUIRED    |               | SHARED_READ  | NULL            | 1473575910000   | 1473575910000  | hive  | rk2.hdp   | hive_20160911063828_8fa70fce-587f-479d-8a77-245f525cf624  |
++----------+-----------+--------------+------------+-------------+---------------+--------------+-----------------+-----------------+----------------+-------+-----------+-----------------------------------------------------------+--+
+2 rows selected (0.037 seconds)
+```
+“SHARED” lock is also called a “READ” lock, meaning, other people can still read from the table, but any writes will have to wait for it to finish.
+
+```
+INSERT OVERWRITE TABLE test SELECT COUNT(1) FROM sample_07;
+
+sHOW LOCKS test;
++----------+-----------+--------+------------+-------------+---------------+------------+-----------------+-----------------+----------------+-------+-----------+-----------------------------------------------------------+--+
+|  lockid  | database  | table  | partition  | lock_state  |  blocked_by   | lock_type  | transaction_id  | last_heartbeat  |  acquired_at   | user  | hostname  |                        agent_info                         |
++----------+-----------+--------+------------+-------------+---------------+------------+-----------------+-----------------+----------------+-------+-----------+-----------------------------------------------------------+--+
+| Lock ID  | Database  | Table  | Partition  | State       | Blocked By    | Type       | Transaction ID  | Last Hearbeat   | Acquired At    | User  | Hostname  | Agent Info                                                |
+| 147.1    | default   | test   | NULL       | ACQUIRED    |               | EXCLUSIVE  | NULL            | 1473576075000   | 1473576075000  | hive  | rk2.hdp   | hive_20160911064115_e462deea-aaaa-4aeb-9131-ce9194a289d3  |
++----------+-----------+--------+------------+-------------+---------------+------------+-----------------+-----------------+----------------+-------+-----------+-----------------------------------------------------------+--+
+2 rows selected (0.051 seconds)
+```
+
+“EXCLUSIVE” lock is also called a “WRITE” lock, meaning no one else is able to read or write to the table while the lock is present, all other queries will have to wait for the current query to finish before they can start.
+
+```
+2016-09-11 07:21:28,042 INFO  [HiveServer2-Background-Pool: Thread-6040]: lockmgr.DbLockManager (DbLockManager.java:lock(103)) - Requesting: queryId=hive_20160911072127_9bad6e63-c422-49a3-87ee-0db1168bea8c LockRequest(component:[LockComponent(type:EXCLUSIVE, level:TABLE, dbname:default, tablename:test, operationType:NO_TXN), LockComponent(type:SHARED_READ, level:TABLE, dbname:default, tablename:techfunding, operationType:SELECT)], txnid:0, user:anonymous, hostname:rk2.hdp, agentInfo:hive_20160911072127_9bad6e63-c422-49a3-87ee-0db1168bea8c)
+```	
